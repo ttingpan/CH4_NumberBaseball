@@ -72,3 +72,8 @@ Plugins/**/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+# Jetbrain Rider
+Plugins/**/RiderLink/*
+*.sln.DotSettings.user
+.idea/
