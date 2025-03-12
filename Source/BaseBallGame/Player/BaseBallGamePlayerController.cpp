@@ -1,6 +1,7 @@
 ﻿#include "BaseBallGamePlayerController.h"
 
 #include "BaseBallGame/BaseBallGameGameMode.h"
+#include "BaseBallGame/FunctionLibrary/ComparingNumbersLib.h"
 #include "BaseBallGame/UI/ChatWidget.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 
@@ -8,6 +9,11 @@ void ABaseBallGamePlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// UI 모드 설정
+	SetInputMode(FInputModeUIOnly());
+	// 마우스 커서 보이기
+	bShowMouseCursor = true;
+	
 	if (GetRemoteRole() != ROLE_None)
 	{
 		// 0.5초 딜레이
@@ -41,8 +47,8 @@ void ABaseBallGamePlayerController::BindToWidgetDelegate()
 	{
 		if (UChatWidget* ChatWidget = Cast<UChatWidget>(Widgets[0]))
 		{
-			// 델리게이트 바인딩
-			ChatWidget->OnMessageCommitted.AddDynamic(this, &ABaseBallGamePlayerController::SetMessageToUserController);
+			// 커밋 델리게이트 바인딩
+			ChatWidget->OnInputCommitted.AddDynamic(this, &ABaseBallGamePlayerController::SetMessageToUserController);
 		}
 	}
 }
@@ -52,12 +58,10 @@ void ABaseBallGamePlayerController::OnLoginWithID_Implementation(const FString& 
 	UserID = InUserID;
 }
 
-void ABaseBallGamePlayerController::SetMessageToUserController_Implementation(const FString& Message)
+void ABaseBallGamePlayerController::SetMessageToUserController_Implementation(const FString& InputText)
 {
 	if (const ABaseBallGameGameMode* GameMode = Cast<ABaseBallGameGameMode>(GetWorld()->GetAuthGameMode()))
 	{
-		FString NewMessage = "";
-		NewMessage.Append(UserID).Append(TEXT(": ")).Append(Message);
-		GameMode->GotMessageFromClient(NewMessage);
+		GameMode->GotMessageFromClient(UserID, InputText);
 	}
 }

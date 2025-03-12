@@ -5,9 +5,10 @@
 
 #include "ChatWidget.generated.h"
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnMessageCommitted, const FString&, Message);
-
+class UTextBlock;
 class UEditableTextBox;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInputCommitted, const FString&, InputText);
 
 UCLASS()
 class BASEBALLGAME_API UChatWidget : public UUserWidget
@@ -20,13 +21,18 @@ public:
 
 	// 커밋 델리게이트
 	UPROPERTY(BlueprintAssignable, Category = "Chat|Widget")
-	FOnMessageCommitted OnMessageCommitted;
+	FOnInputCommitted OnInputCommitted;
 	
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	UEditableTextBox* ChatTextBox;
+	UEditableTextBox* InputTextBox;
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* ErrorMessageText;
 
 private:
 	UFUNCTION()
 	void HandleTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+	
+	UFUNCTION()
+	void HandleTextChanged(const FText& Text);
 };

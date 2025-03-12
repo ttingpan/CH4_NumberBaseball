@@ -20,9 +20,10 @@ public:
 private:
 	// 위젯 델리게이트 바인딩
 	void BindToWidgetDelegate();
-	
+
+	// 입력 내용 전달
 	UFUNCTION(Server, Reliable)
-	void SetMessageToUserController(const FString& Message);
+	void SetMessageToUserController(const FString& InputText);
 	// 아이디로 로그인
 	UFUNCTION(BlueprintCallable, Server, Reliable)
 	void OnLoginWithID(const FString& InUserID);
