@@ -1,16 +1,16 @@
-﻿#include "BaseBallGameGameMode.h"
+﻿#include "NumberBaseballGameMode.h"
 
 #include "FunctionLibrary/ComparingNumbersLib.h"
 #include "FunctionLibrary/RandomNumberLib.h"
 #include "Kismet/GameplayStatics.h"
-#include "Player/BaseBallGamePlayerController.h"
+#include "Player/NumberBaseballPlayerController.h"
 
-ABaseBallGameGameMode::ABaseBallGameGameMode(): TargetNumberLength(0)
+ANumberBaseballGameMode::ANumberBaseballGameMode(): TargetNumberLength(0)
 {
-	PlayerControllerClass = ABaseBallGamePlayerController::StaticClass();
+	PlayerControllerClass = ANumberBaseballPlayerController::StaticClass();
 }
 
-void ABaseBallGameGameMode::BeginPlay()
+void ANumberBaseballGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 	
@@ -24,11 +24,11 @@ void ABaseBallGameGameMode::BeginPlay()
 	}
 }
 
-void ABaseBallGameGameMode::GotMessageFromClient_Implementation(const FString& UserID, const FString& InputText) const
+void ANumberBaseballGameMode::GotMessageFromClient_Implementation(const FString& UserID, const FString& InputText) const
 {
 	// 모든 플레이어 찾기
 	TArray<AActor*> Actors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseBallGamePlayerController::StaticClass(), Actors);
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANumberBaseballPlayerController::StaticClass(), Actors);
 
 	// 숫자 비교
 	const FString CompareResult = UComparingNumbersLib::ComparingNumbers(InputText, TargetNumber);
@@ -37,7 +37,7 @@ void ABaseBallGameGameMode::GotMessageFromClient_Implementation(const FString& U
 	
 	for (AActor*& Actor: Actors)
 	{
-		if (const ABaseBallGamePlayerController* Controller = Cast<ABaseBallGamePlayerController>(Actor))
+		if (const ANumberBaseballPlayerController* Controller = Cast<ANumberBaseballPlayerController>(Actor))
 		{
 			// 플레이어에게 결과 전달
 			Controller->GotBroadcastMessage(NewMessage);

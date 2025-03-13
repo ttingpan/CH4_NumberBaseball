@@ -3,10 +3,10 @@
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
 
-#include "BaseBallGamePlayerController.generated.h"
+#include "NumberBaseballPlayerController.generated.h"
 
 UCLASS()
-class BASEBALLGAME_API ABaseBallGamePlayerController : public APlayerController
+class NUMBERBASEBALL_API ANumberBaseballPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 

@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class BaseBallGame : ModuleRules
+public class NumberBaseball : ModuleRules
 {
-	public BaseBallGame(ReadOnlyTargetRules Target) : base(Target)
+	public NumberBaseball(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -20,6 +20,6 @@ public class BaseBallGame : ModuleRules
 			"SlateCore"
 		});
 		
-		// PublicIncludePaths.Add("BaseBallGame");
+		PublicIncludePaths.Add("NumberBaseball");
 	}
 }

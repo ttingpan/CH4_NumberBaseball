@@ -3,15 +3,15 @@
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
 
-#include "BaseBallGameGameMode.generated.h"
+#include "NumberBaseballGameMode.generated.h"
 
 UCLASS()
-class BASEBALLGAME_API ABaseBallGameGameMode : public AGameModeBase
+class NUMBERBASEBALL_API ANumberBaseballGameMode : public AGameModeBase
 {
 	GENERATED_BODY()
 
 public:
-	ABaseBallGameGameMode();
+	ANumberBaseballGameMode();
 
 	virtual void BeginPlay() override;
 

@@ -2,12 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+
 #include "ComparingNumbersLib.generated.h"
 
 enum class EBaseballResult : uint8;
 
 UCLASS()
-class BASEBALLGAME_API UComparingNumbersLib : public UBlueprintFunctionLibrary
+class NUMBERBASEBALL_API UComparingNumbersLib : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 

@@ -1,11 +1,11 @@
-﻿#include "BaseBallGamePlayerController.h"
+﻿#include "NumberBaseballPlayerController.h"
 
-#include "BaseBallGame/BaseBallGameGameMode.h"
-#include "BaseBallGame/FunctionLibrary/ComparingNumbersLib.h"
-#include "BaseBallGame/UI/ChatWidget.h"
+#include "NumberBaseball/NumberBaseballGameMode.h"
+#include "NumberBaseball/FunctionLibrary/ComparingNumbersLib.h"
+#include "NumberBaseball/UI/ChatWidget.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 
-void ABaseBallGamePlayerController::BeginPlay()
+void ANumberBaseballPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -21,14 +21,14 @@ void ABaseBallGamePlayerController::BeginPlay()
 		GetWorld()->GetTimerManager().SetTimer(
 			TimerHandle,
 			this,
-			&ABaseBallGamePlayerController::BindToWidgetDelegate,
+			&ANumberBaseballPlayerController::BindToWidgetDelegate,
 			0.5f,
 			false
 		);
 	}
 }
 
-void ABaseBallGamePlayerController::GotBroadcastMessage_Implementation(const FString& Message) const
+void ANumberBaseballPlayerController::GotBroadcastMessage_Implementation(const FString& Message) const
 {
 	// 서버 스스로 호출하지 않도록 방어
 	if (HasAuthority())
@@ -37,7 +37,7 @@ void ABaseBallGamePlayerController::GotBroadcastMessage_Implementation(const FSt
 	}
 }
 
-void ABaseBallGamePlayerController::BindToWidgetDelegate()
+void ANumberBaseballPlayerController::BindToWidgetDelegate()
 {
 	// 채팅 위젯 찾기
 	TArray<UUserWidget*> Widgets;
@@ -48,19 +48,19 @@ void ABaseBallGamePlayerController::BindToWidgetDelegate()
 		if (UChatWidget* ChatWidget = Cast<UChatWidget>(Widgets[0]))
 		{
 			// 커밋 델리게이트 바인딩
-			ChatWidget->OnInputCommitted.AddDynamic(this, &ABaseBallGamePlayerController::SetMessageToUserController);
+			ChatWidget->OnInputCommitted.AddDynamic(this, &ANumberBaseballPlayerController::SetMessageToUserController);
 		}
 	}
 }
 
-void ABaseBallGamePlayerController::OnLoginWithID_Implementation(const FString& InUserID)
+void ANumberBaseballPlayerController::OnLoginWithID_Implementation(const FString& InUserID)
 {
 	UserID = InUserID;
 }
 
-void ABaseBallGamePlayerController::SetMessageToUserController_Implementation(const FString& InputText)
+void ANumberBaseballPlayerController::SetMessageToUserController_Implementation(const FString& InputText)
 {
-	if (const ABaseBallGameGameMode* GameMode = Cast<ABaseBallGameGameMode>(GetWorld()->GetAuthGameMode()))
+	if (const ANumberBaseballGameMode* GameMode = Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode()))
 	{
 		GameMode->GotMessageFromClient(UserID, InputText);
 	}

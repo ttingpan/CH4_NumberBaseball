@@ -5,7 +5,7 @@
 	"Description": "",
 	"Modules": [
 		{
-			"Name": "BaseBallGame",
+			"Name": "NumberBaseball",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"
 		}

@@ -11,7 +11,7 @@ class UEditableTextBox;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInputCommitted, const FString&, InputText);
 
 UCLASS()
-class BASEBALLGAME_API UChatWidget : public UUserWidget
+class NUMBERBASEBALL_API UChatWidget : public UUserWidget
 {
 	GENERATED_BODY()
 

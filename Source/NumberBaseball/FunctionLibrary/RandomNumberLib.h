@@ -5,7 +5,7 @@
 #include "RandomNumberLib.generated.h"
 
 UCLASS()
-class BASEBALLGAME_API URandomNumberLib : public UBlueprintFunctionLibrary
+class NUMBERBASEBALL_API URandomNumberLib : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
