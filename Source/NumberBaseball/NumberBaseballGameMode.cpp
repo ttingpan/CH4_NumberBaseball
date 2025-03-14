@@ -1,5 +1,6 @@
 ﻿#include "NumberBaseballGameMode.h"
 
+#include "NumberBaseballGameState.h"
 #include "FunctionLibrary/ComparingNumbersLib.h"
 #include "FunctionLibrary/RandomNumberLib.h"
 #include "Kismet/GameplayStatics.h"
@@ -14,17 +15,26 @@ void ANumberBaseballGameMode::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	// 서버일 경우
-	if (UKismetSystemLibrary::IsServer(GetWorld()))
-	{
-		// 난수 생성(1 ~ 9 범위)
-		TargetNumber = URandomNumberLib::GenerateRandomNumber(TargetNumberLength);
+	// 난수 생성(1 ~ 9 범위)
+	TargetNumber = URandomNumberLib::GenerateRandomNumber(TargetNumberLength);
 
-		UE_LOG(LogTemp, Warning, TEXT("TargetNumber: %s"), *TargetNumber);
+	UE_LOG(LogTemp, Warning, TEXT("TargetNumber: %s"), *TargetNumber);
+	
+	// 생성된 숫자의 길이 게임 스테이트에 저장
+	if (ANumberBaseballGameState* NumberBaseballGameState = GetGameState<ANumberBaseballGameState>())
+	{
+		NumberBaseballGameState->SetTargetNumberLength(TargetNumberLength);
 	}
+
 }
 
-void ANumberBaseballGameMode::GotMessageFromClient_Implementation(const FString& UserID, const FString& InputText) const
+bool ANumberBaseballGameMode::Server_GotInputText_Validate(const FString& UserID, const FString& InputText)
+{
+	// 필요시 유효성 체크 로직 구현
+	return true;
+}
+
+void ANumberBaseballGameMode::Server_GotInputText_Implementation(const FString& UserID, const FString& InputText) const
 {
 	// 모든 플레이어 찾기
 	TArray<AActor*> Actors;
@@ -40,7 +50,7 @@ void ANumberBaseballGameMode::GotMessageFromClient_Implementation(const FString&
 		if (const ANumberBaseballPlayerController* Controller = Cast<ANumberBaseballPlayerController>(Actor))
 		{
 			// 플레이어에게 결과 전달
-			Controller->GotBroadcastMessage(NewMessage);
+			Controller->Client_GotInputText(NewMessage);
 		}
 	}
 }

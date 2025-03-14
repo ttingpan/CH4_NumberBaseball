@@ -16,18 +16,22 @@ class NUMBERBASEBALL_API UChatWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "Chat|Widget")
-	void InitWidget();
+	void SetOtherUserName(const FString& OtherUserID) const;
 
+	UFUNCTION(BlueprintCallable, Category = "Chat|Widget")
+	void InitWidget(int32 InTargetNumberLength);
+	
 	// 커밋 델리게이트
 	UPROPERTY(BlueprintAssignable, Category = "Chat|Widget")
 	FOnInputCommitted OnInputCommitted;
 	
 protected:
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
+	UPROPERTY(meta = (BindWidget))
 	UEditableTextBox* InputTextBox;
 	UPROPERTY(meta = (BindWidget))
-	UTextBlock* ErrorMessageText;
+	UTextBlock* HelpMessage;
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* OtherUserName;
 
 private:
 	UFUNCTION()
@@ -35,4 +39,7 @@ private:
 	
 	UFUNCTION()
 	void HandleTextChanged(const FText& Text);
+
+	// 목표 글자 수
+	int32 TargetNumberLength = 0;
 };

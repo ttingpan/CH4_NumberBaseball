@@ -2,11 +2,6 @@
 
 FString UComparingNumbersLib::ComparingNumbers(const FString& InputNumber, const FString& TargetNumber)
 {
-	if (InputNumber.Len() != TargetNumber.Len())
-	{
-		return TEXT("ERROR");
-	}
-	
 	int32 StrikeCount = 0;
 	int32 BallCount = 0;
 	for (int32 i = 0; i < InputNumber.Len(); i++)
