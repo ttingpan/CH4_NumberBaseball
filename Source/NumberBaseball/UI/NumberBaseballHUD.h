@@ -4,7 +4,7 @@
 #include "GameFramework/HUD.h"
 #include "NumberBaseballHUD.generated.h"
 
-class UChatWidget;
+class UMainWidget;
 
 UCLASS()
 class NUMBERBASEBALL_API ANumberBaseballHUD : public AHUD
@@ -12,16 +12,9 @@ class NUMBERBASEBALL_API ANumberBaseballHUD : public AHUD
 	GENERATED_BODY()
 
 public:
-	void Init();
-
-	// 채팅 위젯 반환
-	FORCEINLINE UChatWidget* GetChatWidget() const { return ChatWidget; }
-
-protected:
-	UPROPERTY(EditDefaultsOnly)
-	TSubclassOf<UChatWidget> ChatWidgetClass;
+	virtual void BeginPlay() override;
 
 private:
-	UPROPERTY()
-	TObjectPtr<UChatWidget> ChatWidget;
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UMainWidget> MainWidgetClass;
 };

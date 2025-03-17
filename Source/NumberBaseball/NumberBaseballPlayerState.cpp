@@ -1,17 +1,19 @@
 ﻿#include "NumberBaseballPlayerState.h"
 
+#include "NumberBaseballGameMode.h"
 #include "NumberBaseballGameState.h"
-#include "Net/UnrealNetwork.h"
 
-ANumberBaseballPlayerState::ANumberBaseballPlayerState()
+ANumberBaseballPlayerState::ANumberBaseballPlayerState(): bIsReady(false)
 {
-	UserID = "Unknown";
 }
 
-void ANumberBaseballPlayerState::GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const
+void ANumberBaseballPlayerState::GameReady()
 {
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ANumberBaseballPlayerState, UserID);
-	DOREPLIFETIME(ANumberBaseballPlayerState, bIsLoggedIn);
+	bIsReady = !bIsReady;
+	
+	if (ANumberBaseballGameMode* NumberBaseballGameMode = Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		NumberBaseballGameMode->PlayerReady(this);
+	}
 }
 

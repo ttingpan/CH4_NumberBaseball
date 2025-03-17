@@ -1,19 +1,13 @@
 ﻿#include "NumberBaseballHUD.h"
 
-#include "NumberBaseballGameState.h"
+#include "MainWidget.h"
 #include "Blueprint/UserWidget.h"
-#include "UI/ChatWidget.h"
 
-void ANumberBaseballHUD::Init()
+void ANumberBaseballHUD::BeginPlay()
 {
-	if (const ANumberBaseballGameState* NumberBaseballGameState = Cast<ANumberBaseballGameState>(GetWorld()->GetGameState()))
-	{
-		ChatWidget = CreateWidget<UChatWidget>(GetOwningPlayerController(), ChatWidgetClass);
-		ChatWidget->InitWidget(NumberBaseballGameState->GetTargetNumberLength());
-		ChatWidget->AddToViewport();
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("GameState가 유효하지 않습니다."));
-	}
+	Super::BeginPlay();
+
+	UMainWidget* MainWidget = CreateWidget<UMainWidget>(GetOwningPlayerController(), MainWidgetClass);
+	MainWidget->InitWidget();
+	MainWidget->AddToViewport();
 }

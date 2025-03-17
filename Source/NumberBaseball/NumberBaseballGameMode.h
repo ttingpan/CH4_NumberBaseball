@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "NumberBaseballPlayerState.h"
 #include "GameFramework/GameModeBase.h"
 
 #include "NumberBaseballGameMode.generated.h"
@@ -14,6 +15,14 @@ public:
 	ANumberBaseballGameMode();
 
 	virtual void BeginPlay() override;
+
+	virtual void PostLogin(APlayerController* NewPlayer) override;
+	
+	// 플레이어 준비 완료
+	void PlayerReady(const ANumberBaseballPlayerState* NumberBaseballPlayerState);
+	
+	// 게임 시작
+	void StartGame();
 	
 	// 클라이언트로부터 메세지를 받았을 때 동작
 	UFUNCTION(Server, Reliable, WithValidation)
@@ -24,23 +33,19 @@ public:
 	{
 		return TargetNumberLength;
 	}
-	// 랜덤 숫자 반환
-	FORCEINLINE FString GetTargetNumber() const
-	{
-		return TargetNumber;
-	}
-	
-	// 랜덤 숫자 길이 설정
-	FORCEINLINE void SetTargetNumberLength(const int32 InTargetNumberLength)
-	{
-		TargetNumberLength = InTargetNumberLength;
-	}
 
 protected:
 	// 랜덤 숫자 길이
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "TargetNumber", meta=(ClampMin = 1, ClampMax = 9))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game", meta=(ClampMin = 1, ClampMax = 9))
 	int32 TargetNumberLength;
-
+	// 필요 플레이어 수
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game", meta=(ClampMin = 1, ClampMax = 4))
+	int32 RequiredReadyCount;
+	
 	// 랜덤 숫자
 	FString TargetNumber;
+	// 접속한 플레이어 수
+	int32 ReadyCount;
+
+	int32 LoginCount;
 };

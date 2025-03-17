@@ -16,7 +16,7 @@ FString UComparingNumbersLib::ComparingNumbers(const FString& InputNumber, const
 			{
 				StrikeCount++;
 			}
-			// 위치는 다르지만, TargetNumber에 존재하는 경우
+			// TargetNumber에 존재하지만, 위치가 다른 경우
 			else
 			{
 				BallCount++;

@@ -1,44 +1,30 @@
 ﻿#include "NumberBaseballGameState.h"
 
-#include "NumberBaseballPlayerState.h"
-#include "Net/UnrealNetwork.h"
+#include "GameFramework/PlayerState.h"
 #include "Player/NumberBaseballPlayerController.h"
 
-class ANumberBaseballPlayerState;
-
-ANumberBaseballGameState::ANumberBaseballGameState()
-	: TargetNumberLength(0)
+void ANumberBaseballGameState::RegisterPlayerName(const FString& PlayerName)
 {
+	PlayerNames.Add(PlayerName);
+	UE_LOG(LogTemp, Warning, TEXT("RegisterPlayerName: %s"), *PlayerName);
 }
 
-void ANumberBaseballGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+void ANumberBaseballGameState::Multicast_UpdateOtherPlayerName_Implementation(const FString& PlayerName1,
+                                                                            const FString& PlayerName2)
 {
-	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ANumberBaseballGameState, TargetNumberLength);
-}
-
-void ANumberBaseballGameState::RegisterUserID(const FString& UserID)
-{
-	if (UserIDs.Num() < 2) // 최대 2명만 저장
+	for (const APlayerState* PlayerState : PlayerArray)
 	{
-		UserIDs.Add(UserID);
-		UE_LOG(LogTemp, Warning, TEXT("플레이어 등록: %s"), *UserID);
-	}
-}
-
-void ANumberBaseballGameState::Multicast_UpdateUserIDs_Implementation()
-{
-	for (const APlayerState* PS : PlayerArray)
-	{
-		if (ANumberBaseballPlayerController* PC = Cast<ANumberBaseballPlayerController>(PS->GetPlayerController()))
+		if (const ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<ANumberBaseballPlayerController>(
+			PlayerState->GetPlayerController()))
 		{
-			PC->Client_UpdateOtherUserName(PC->GetPlayerState<ANumberBaseballPlayerState>()->GetUserID() == UserIDs[0]
-				                               ? UserIDs[1]
-				                               : UserIDs[0]);
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("플레이어 컨트롤러가 존재하지 않습니다."));
+			if (PlayerState->GetPlayerName() == PlayerName1)
+			{
+				NumberBaseballPlayerController->SetOtherPlayerName(PlayerName2);
+			}
+			else
+			{
+				NumberBaseballPlayerController->SetOtherPlayerName(PlayerName1);
+			}
 		}
 	}
 }

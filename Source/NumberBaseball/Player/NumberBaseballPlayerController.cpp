@@ -1,10 +1,9 @@
 ﻿#include "NumberBaseballPlayerController.h"
 
-#include "NumberBaseballGameState.h"
 #include "NumberBaseballPlayerState.h"
+#include "GameFramework/GameUserSettings.h"
 #include "NumberBaseball/NumberBaseballGameMode.h"
-#include "NumberBaseball/UI/ChatWidget.h"
-#include "UI/NumberBaseballHUD.h"
+#include "UI/MainWidget.h"
 
 void ANumberBaseballPlayerController::BeginPlay()
 {
@@ -15,101 +14,57 @@ void ANumberBaseballPlayerController::BeginPlay()
 	// 마우스 커서 보이기
 	bShowMouseCursor = true;
 
-	// 서버일 경우 로그인
-	if (HasAuthority())
+	// 화면 크기 설정
+	ChangeGameResolution();
+}
+
+void ANumberBaseballPlayerController::ChangeGameResolution()
+{
+	// 게임 사용자 설정 가져오기
+	if (UGameUserSettings* Settings = GEngine->GetGameUserSettings())
 	{
-		Server_LogInPlayer();
-	}
-	// 클라이언트일 경우 위젯 초기화
-	else
-	{
-		Client_InitWidget();
-		Server_NotifyAllLogin();
+		// 해상도 및 전체화면 모드 설정
+		Settings->SetScreenResolution({1280, 720});
+		Settings->SetFullscreenMode(EWindowMode::Windowed);
+
+		// 변경 사항 적용 (false: 즉시 적용하지 않으면 false, true: 재시작 전까지 적용)
+		Settings->ApplySettings(false);
 	}
 }
 
-void ANumberBaseballPlayerController::Server_NotifyAllLogin_Implementation()
+void ANumberBaseballPlayerController::SetOtherPlayerName(const FString& OtherPlayerName) const
 {
-	if (ANumberBaseballGameState* GS = GetWorld()->GetGameState<ANumberBaseballGameState>())
+	MainWidget->SetOtherPlayerName(OtherPlayerName);
+}
+
+void ANumberBaseballPlayerController::GameStarted_Implementation(const int32& TargetNumberLength)
+{
+	if (MainWidget)
 	{
-		GS->Multicast_UpdateUserIDs();
+		MainWidget->GameStarted(TargetNumberLength);
+		MainWidget->OnInputCommitted.AddDynamic(this, &ANumberBaseballPlayerController::Server_SetInputText);
 	}
 }
 
-void ANumberBaseballPlayerController::Server_RegisterUserID_Implementation(const FString& UserID)
+void ANumberBaseballPlayerController::Server_ReadyButtonClicked_Implementation()
 {
-	if (ANumberBaseballGameState* GS = GetWorld()->GetGameState<ANumberBaseballGameState>())
+	if (ANumberBaseballPlayerState* NumberBaseballPlayerState = GetPlayerState<ANumberBaseballPlayerState>())
 	{
-		GS->RegisterUserID(UserID);
+		NumberBaseballPlayerState->GameReady();
 	}
 }
 
-void ANumberBaseballPlayerController::Client_UpdateOtherUserName_Implementation(const FString& OtherUserID)
+bool ANumberBaseballPlayerController::Server_ReadyButtonClicked_Validate()
 {
-	if (ChatWidget)
-	{
-		ChatWidget->SetOtherUserName(OtherUserID);
-	}
+	return true;
 }
 
 void ANumberBaseballPlayerController::Client_GotInputText_Implementation(const FString& Message) const
 {
 	// 서버 스스로 호출하지 않도록 방어
-	if (HasAuthority())
+	if (!HasAuthority())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Client_GotInputText: %s"), *Message);
-	}
-}
-
-void ANumberBaseballPlayerController::Server_LogInPlayer_Implementation()
-{
-	FString UserID = "";
-	// 아이디로 로그인
-	if (ANumberBaseballPlayerState* NumberBaseballPlayerState = GetPlayerState<ANumberBaseballPlayerState>())
-	{
-		UserID = IsLocalPlayerController() ? "Host" : "Guest";
-		NumberBaseballPlayerState->LogIn(UserID);
-
-		UE_LOG(LogTemp, Warning, TEXT("%s 로그인"), *NumberBaseballPlayerState->GetUserID());
-
-		// GameState에 등록
-		Server_RegisterUserID(UserID);
-	}
-
-	// 위젯 초기화
-	Client_InitWidget();
-}
-
-bool ANumberBaseballPlayerController::Server_LogInPlayer_Validate()
-{
-	return true;
-}
-
-void ANumberBaseballPlayerController::Client_InitWidget_Implementation()
-{
-	if (GetHUD())
-	{
-		// HUD 초기화
-		if (ANumberBaseballHUD* NumberBaseballHUD = Cast<ANumberBaseballHUD>(GetHUD()))
-		{
-			NumberBaseballHUD->Init();
-
-			ChatWidget = NumberBaseballHUD->GetChatWidget();
-			if (ChatWidget)
-			{
-				// 커밋 델리게이트 바인딩
-				ChatWidget->OnInputCommitted.AddDynamic(
-					this, &ANumberBaseballPlayerController::Server_SetInputText);
-			}
-		}
-		else
-		{
-			UE_LOG(LogTemp, Warning, TEXT("NumberBaseballHUD가 존재하지 않습니다."));
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Warning, TEXT("HUD가 존재하지 않습니다."));
 	}
 }
 
@@ -117,10 +72,7 @@ void ANumberBaseballPlayerController::Server_SetInputText_Implementation(const F
 {
 	if (const ANumberBaseballGameMode* GameMode = Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode()))
 	{
-		if (const ANumberBaseballPlayerState* NumberBaseballPlayerState = GetPlayerState<ANumberBaseballPlayerState>())
-		{
-			GameMode->Server_GotInputText(NumberBaseballPlayerState->GetUserID(), InputText);
-		}
+		GameMode->Server_GotInputText(PlayerState->GetPlayerName(), InputText);
 	}
 }
 
