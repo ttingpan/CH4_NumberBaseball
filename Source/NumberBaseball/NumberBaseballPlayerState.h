@@ -10,8 +10,6 @@ class NUMBERBASEBALL_API ANumberBaseballPlayerState : public APlayerState
 	GENERATED_BODY()
 
 public:
-	ANumberBaseballPlayerState();
-	
 	// 게임 준비 여부 반환
 	FORCEINLINE bool IsReady() const { return bIsReady; }
 
@@ -19,5 +17,5 @@ public:
 	void GameReady();
 private:
 	UPROPERTY()
-	bool bIsReady;
+	bool bIsReady = false;
 };

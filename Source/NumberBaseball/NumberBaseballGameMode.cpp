@@ -5,10 +5,13 @@
 #include "FunctionLibrary/ComparingNumbersLib.h"
 #include "FunctionLibrary/RandomNumberLib.h"
 #include "Kismet/GameplayStatics.h"
+#include "Manager/TurnManager.h"
 #include "Player/NumberBaseballPlayerController.h"
 
-ANumberBaseballGameMode::ANumberBaseballGameMode(): TargetNumberLength(0), RequiredReadyCount(2), ReadyCount(0),
-                                                    LoginCount(0)
+ANumberBaseballGameMode::ANumberBaseballGameMode()
+	: TurnManager(nullptr), TurnDuration(15.0f), MaxTurnCount(3), MaxRound(3), TargetNumberLength(3),
+	  RequiredReadyCount(2),
+	  JoinedPlayerCount(0), ReadyCount(0)
 {
 	PlayerControllerClass = ANumberBaseballPlayerController::StaticClass();
 	GameStateClass = ANumberBaseballGameState::StaticClass();
@@ -18,26 +21,41 @@ ANumberBaseballGameMode::ANumberBaseballGameMode(): TargetNumberLength(0), Requi
 void ANumberBaseballGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-}
 
-void ANumberBaseballGameMode::PostLogin(APlayerController* NewPlayer)
-{
-	Super::PostLogin(NewPlayer);
-
-	if (NewPlayer && NewPlayer->PlayerState)
+	if (!TurnManager)
 	{
-		LoginCount++;
-		const FString PlayerName = FString::Printf(TEXT("Player%d"), LoginCount);
-		NewPlayer->PlayerState->SetPlayerName(PlayerName);
-		GetGameState<ANumberBaseballGameState>()->RegisterPlayerName(PlayerName);
+		// 턴 매니저 생성
+		TurnManager = GetWorld()->SpawnActor<ATurnManager>(TurnManagerClass);
+		TurnManager->InitTurnManager(TurnDuration, MaxTurnCount);
+
+		// 게임 스테이트에 턴 매니저 저장
+		if (ANumberBaseballGameState* NumberBaseballGameState = GetGameState<ANumberBaseballGameState>())
+		{
+			NumberBaseballGameState->SetTurnManager(TurnManager);
+			NumberBaseballGameState->BindTurnManagerEvent();
+		}
 	}
 }
 
-void ANumberBaseballGameMode::PlayerReady(const ANumberBaseballPlayerState* NumberBaseballPlayerState)
+void ANumberBaseballGameMode::JoinGame(const ANumberBaseballPlayerController* PlayerController,
+                                       const FString& PlayerName)
 {
-	const FString PlayerName = NumberBaseballPlayerState->GetPlayerName();
+	if (PlayerController && PlayerController->PlayerState)
+	{
+		JoinedPlayerCount++;
+		PlayerController->PlayerState->SetPlayerName(PlayerName);
+		if (ANumberBaseballGameState* NumberBaseballGameState = GetGameState<ANumberBaseballGameState>())
+		{
+			// 플레이어 이름 등록
+			NumberBaseballGameState->RegisterPlayerName(PlayerName);
+		}
+	}
+}
+
+void ANumberBaseballGameMode::PlayerReady(const FString& PlayerName, const bool bIsReady)
+{
 	FString LogText = FString::Printf(TEXT("플레이어 %s "), *PlayerName);
-	if (NumberBaseballPlayerState->IsReady())
+	if (bIsReady)
 	{
 		ReadyCount++;
 		LogText += TEXT("준비 완료");
@@ -72,6 +90,8 @@ void ANumberBaseballGameMode::StartGame()
 			NumberBaseballPlayerController->GameStarted(TargetNumberLength);
 		}
 	}
+
+	TurnManager->StartTurn();
 }
 
 void ANumberBaseballGameMode::Server_GotInputText_Implementation(const FString& UserID, const FString& InputText) const

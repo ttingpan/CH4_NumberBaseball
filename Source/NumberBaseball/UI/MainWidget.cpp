@@ -1,9 +1,9 @@
 #include "MainWidget.h"
 
-#include "NumberBaseballPlayerState.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "Components/TextBlock.h"
+#include "FunctionLibrary/InputValidationLib.h"
 #include "Player/NumberBaseballPlayerController.h"
 
 void UMainWidget::SetOtherPlayerName(const FString& InOtherPlayerName) const
@@ -15,12 +15,17 @@ void UMainWidget::SetOtherPlayerName(const FString& InOtherPlayerName) const
 	}
 }
 
-void UMainWidget::GameStarted(const int32& InTargetNumberLength)
+void UMainWidget::GameStarted(const int32 InTargetNumberLength)
 {
 	TargetNumberLength = InTargetNumberLength;
-
 	InputTextBox->SetIsEnabled(true);
 	SetHelpMessage();
+	ReadyButton->SetVisibility(ESlateVisibility::Hidden);
+}
+
+void UMainWidget::UpdateTimerText(const FString& InTimerText) const
+{
+	TimerText->SetText(FText::FromString(InTimerText));
 }
 
 void UMainWidget::SetHelpMessage() const
@@ -41,16 +46,17 @@ void UMainWidget::SetHelpMessage(const FString& InHelpMessage) const
 void UMainWidget::InitWidget()
 {
 	// 커밋 이벤트 바인딩
-	InputTextBox->OnTextCommitted.AddDynamic(this, &UMainWidget::HandleTextCommitted);
+	InputTextBox->OnTextCommitted.AddDynamic(this, &UMainWidget::OnTextCommitted);
 	// 텍스트 변경 이벤트 바인딩
-	InputTextBox->OnTextChanged.AddDynamic(this, &UMainWidget::HandleTextChanged);
+	InputTextBox->OnTextChanged.AddDynamic(this, &UMainWidget::OnTextChanged);
 
 	InputTextBox->SetIsEnabled(false);
 
 	OtherPlayerName->SetText(FText::FromString(""));
 	HelpMessage->SetText(FText::FromString(""));
+	TimerText->SetText(FText::FromString(""));
 
-	ReadyButton->OnClicked.AddDynamic(this, &UMainWidget::HandleReadyButtonClicked);
+	ReadyButton->OnClicked.AddDynamic(this, &UMainWidget::OnReadyButtonClicked);
 
 	if (ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<ANumberBaseballPlayerController>(
 		GetOwningPlayer()))
@@ -59,19 +65,19 @@ void UMainWidget::InitWidget()
 	}
 }
 
-void UMainWidget::SetReadyButtonText(const bool bIsReady) const
+void UMainWidget::SetReadyButtonText()
 {
 	if (UTextBlock* ReadyButtonText = Cast<UTextBlock>(ReadyButton->GetChildAt(0)))
 	{
+		bIsReady = !bIsReady;
+		
 		ReadyButtonText->SetText(
 			FText::FromString(bIsReady ? TEXT("준비 완료") : TEXT("게임 준비")));
-
-		UE_LOG(LogTemp, Warning, TEXT("TEST!!!"));
 	}
 }
 
 // ReSharper disable once CppMemberFunctionMayBeConst
-void UMainWidget::HandleTextCommitted(const FText& Text, const ETextCommit::Type CommitMethod)
+void UMainWidget::OnTextCommitted(const FText& Text, const ETextCommit::Type CommitMethod)
 {
 	// 엔터를 눌렀을 경우만 실행
 	if (CommitMethod == ETextCommit::OnEnter)
@@ -82,7 +88,7 @@ void UMainWidget::HandleTextCommitted(const FText& Text, const ETextCommit::Type
 		if (InputText.Len() == TargetNumberLength)
 		{
 			// 서버로 입력한 값 전달
-			OnInputCommitted.Broadcast(InputText);
+			OnInputCommittedDelegate.Broadcast(InputText);
 
 			// 입력 창 초기화
 			InputTextBox->SetText(FText::GetEmpty());
@@ -91,12 +97,12 @@ void UMainWidget::HandleTextCommitted(const FText& Text, const ETextCommit::Type
 }
 
 // ReSharper disable once CppMemberFunctionMayBeConst
-void UMainWidget::HandleTextChanged(const FText& Text)
+void UMainWidget::OnTextChanged(const FText& Text)
 {
 	FString InputText = Text.ToString();
 
-	// 유효한 입력이 아닐 경우
-	if (!IsValidInput(InputText, InputText.Right(1)))
+	// 입력 검증 => 1-9숫자만 입력 가능, 중복 불가능
+	if (!UInputValidationLib::IsValidInputText(InputText, TargetNumberLength, FRegexPattern(TEXT("^[1-9]*$")), false))
 	{
 		// 입력 제거(마지막 문자 제거)
 		InputText = InputText.LeftChop(1);
@@ -106,36 +112,11 @@ void UMainWidget::HandleTextChanged(const FText& Text)
 }
 
 // ReSharper disable once CppMemberFunctionMayBeConst
-void UMainWidget::HandleReadyButtonClicked()
+void UMainWidget::OnReadyButtonClicked()
 {
-	if (ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<ANumberBaseballPlayerController>(
-		GetOwningPlayer()))
-	{
-		NumberBaseballPlayerController->Server_ReadyButtonClicked();
+	// 버튼 텍스트 변경
+	SetReadyButtonText();
 
-		if (const ANumberBaseballPlayerState* NumberBaseballPlayerState = Cast<ANumberBaseballPlayerState>(
-			NumberBaseballPlayerController->PlayerState))
-		{
-			SetReadyButtonText(NumberBaseballPlayerState->IsReady());
-		}
-	}
-}
-
-bool UMainWidget::IsValidInput(const FString& InputText, const FString& LastChar) const
-{
-	// 목표 글자 수 보다 커지면 자르기
-	// 중복 글자 입력 방지(마지막 글자를 제외한 나머지에서 찾기)
-	if (InputText.Len() > TargetNumberLength)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("글자 수 초과"));
-		return false;
-	}
-
-	if (InputText.LeftChop(1).Contains(LastChar))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("중복된 글자"));
-		return false;
-	}
-
-	return true;
+	// 서버로 게임 준비 전달
+	OnReadyButtonClickedDelegate.Broadcast();
 }

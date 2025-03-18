@@ -5,14 +5,16 @@
 
 #include "MainWidget.generated.h"
 
+class ATurnManager;
 class UButton;
 class ANumberBaseballHUD;
 class UTextBlock;
 class UEditableTextBox;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInputCommitted, const FString&, InputText);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnReadyButtonClicked);
 
-UCLASS()
+UCLASS(Abstract)
 class NUMBERBASEBALL_API UMainWidget : public UUserWidget
 {
 	GENERATED_BODY()
@@ -20,28 +22,35 @@ class NUMBERBASEBALL_API UMainWidget : public UUserWidget
 public:
 	// 상대 이름 설정
 	void SetOtherPlayerName(const FString& InOtherPlayerName) const;
+	// 게임 시작
+	void GameStarted(int32 InTargetNumberLength);
 
-	// 입력 가능 여부 변경
-	void GameStarted(const int32& InTargetNumberLength);
+	// 타이머 텍스트 업데이트
+	void UpdateTimerText(const FString& InTimerText) const;
 
 	// 도움말 메세지 설정
 	void SetHelpMessage() const;
 	void SetHelpMessage(const FString& InHelpMessage) const;
-
 	// 위젯 초기화
 	void InitWidget();
+	// 준비 버튼 텍스트 설정
+	void SetReadyButtonText();
 
 	// 커밋 델리게이트
 	UPROPERTY()
-	FOnInputCommitted OnInputCommitted;
+	FOnInputCommitted OnInputCommittedDelegate;
+	// 준비 버튼 델리게이트
+	UPROPERTY()
+	FOnReadyButtonClicked OnReadyButtonClickedDelegate;
+	
+private:
+	UFUNCTION()
+	void OnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+	UFUNCTION()
+	void OnTextChanged(const FText& Text);
+	UFUNCTION()
+	void OnReadyButtonClicked();
 
-	// 목표 글자 수 반환
-	FORCEINLINE int32 GetTargetNumberLength() const { return TargetNumberLength; }
-
-	// 준비 버튼 텍스트 설정
-	void SetReadyButtonText(const bool bIsReady) const;
-
-protected:
 	UPROPERTY(meta = (BindWidget))
 	UEditableTextBox* InputTextBox;
 	UPROPERTY(meta = (BindWidget))
@@ -50,18 +59,12 @@ protected:
 	UTextBlock* OtherPlayerName;
 	UPROPERTY(meta = (BindWidget))
 	UButton* ReadyButton;
-
-private:
-	UFUNCTION()
-	void HandleTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
-	UFUNCTION()
-	void HandleTextChanged(const FText& Text);
-	UFUNCTION()
-	void HandleReadyButtonClicked();
-
-	// 유효한 입력인지 확인
-	bool IsValidInput(const FString& InputText, const FString& LastChar) const;
-
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* TimerText;
+	
 	// 목표 글자 수
 	int32 TargetNumberLength = 0;
+
+	// 준비 여부
+	bool bIsReady = false;
 };

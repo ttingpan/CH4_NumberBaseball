@@ -1,7 +1,11 @@
-﻿#include "NumberBaseballPlayerController.h"
+﻿// PRAGMA_DISABLE_OPTIMIZATION
 
+#include "NumberBaseballPlayerController.h"
+
+#include "NumberBaseballGameState.h"
 #include "NumberBaseballPlayerState.h"
 #include "GameFramework/GameUserSettings.h"
+#include "Manager/TurnManager.h"
 #include "NumberBaseball/NumberBaseballGameMode.h"
 #include "UI/MainWidget.h"
 
@@ -32,9 +36,54 @@ void ANumberBaseballPlayerController::ChangeGameResolution()
 	}
 }
 
-void ANumberBaseballPlayerController::SetOtherPlayerName(const FString& OtherPlayerName) const
+void ANumberBaseballPlayerController::Client_OnTurnUpdated_Implementation(float RemainingTime)
 {
-	MainWidget->SetOtherPlayerName(OtherPlayerName);
+	UE_LOG(LogTemp, Warning, TEXT("Update TEST"));
+	if (MainWidget)
+	{
+		MainWidget->UpdateTimerText(FString::FromInt(RemainingTime));
+	}
+}
+
+// ReSharper disable once CppMemberFunctionMayBeConst
+void ANumberBaseballPlayerController::OnTurnEnded()
+{
+	if (MainWidget)
+	{
+		//TODO: 턴 종료 이벤트 추가
+	}
+}
+
+void ANumberBaseballPlayerController::SetMainWidget(UMainWidget* InMainWidget)
+{
+	if (InMainWidget)
+	{
+		MainWidget = InMainWidget;
+		MainWidget->OnInputCommittedDelegate.AddDynamic(this, &ANumberBaseballPlayerController::Server_SetInputText);
+		MainWidget->OnReadyButtonClickedDelegate.AddDynamic(
+			this, &ANumberBaseballPlayerController::Server_ReadyButtonClicked);
+	}
+}
+
+void ANumberBaseballPlayerController::Client_SetOtherPlayerName_Implementation(const FString& OtherPlayerName) const
+{
+	if (MainWidget)
+	{
+		MainWidget->SetOtherPlayerName(OtherPlayerName);
+	}
+}
+
+void ANumberBaseballPlayerController::Server_JoinGame_Implementation(const FString& PlayerName)
+{
+	if (ANumberBaseballGameMode* NumberBaseballGameMode = Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode()))
+	{
+		NumberBaseballGameMode->JoinGame(this, PlayerName);
+	}
+}
+
+bool ANumberBaseballPlayerController::Server_JoinGame_Validate(const FString& PlayerName)
+{
+	return true;
 }
 
 void ANumberBaseballPlayerController::GameStarted_Implementation(const int32& TargetNumberLength)
@@ -42,7 +91,6 @@ void ANumberBaseballPlayerController::GameStarted_Implementation(const int32& Ta
 	if (MainWidget)
 	{
 		MainWidget->GameStarted(TargetNumberLength);
-		MainWidget->OnInputCommitted.AddDynamic(this, &ANumberBaseballPlayerController::Server_SetInputText);
 	}
 }
 
