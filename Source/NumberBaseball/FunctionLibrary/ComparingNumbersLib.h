@@ -14,5 +14,6 @@ class NUMBERBASEBALL_API UComparingNumbersLib : public UBlueprintFunctionLibrary
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "ComparingNumbersLib")
-	static FString ComparingNumbers(const FString& InputNumber, const FString& TargetNumber);
+	static void ComparingNumbers(const FString& InputNumber, const FString& TargetNumber, int32& OutStrikeCount,
+	                             int32& OutBallCount);
 };

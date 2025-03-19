@@ -1,7 +1,9 @@
 #include "MainWidget.h"
 
+#include "ChatWidget.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
+#include "Components/ScrollBox.h"
 #include "Components/TextBlock.h"
 #include "FunctionLibrary/InputValidationLib.h"
 #include "Player/NumberBaseballPlayerController.h"
@@ -15,12 +17,24 @@ void UMainWidget::SetOtherPlayerName(const FString& InOtherPlayerName) const
 	}
 }
 
-void UMainWidget::GameStarted(const int32 InTargetNumberLength)
+void UMainWidget::PrepareStartTurn(const int32 InTargetNumberLength)
 {
 	TargetNumberLength = InTargetNumberLength;
+	ReadyButton->SetVisibility(ESlateVisibility::Hidden);
+}
+
+void UMainWidget::TurnStarted() const
+{
 	InputTextBox->SetIsEnabled(true);
 	SetHelpMessage();
-	ReadyButton->SetVisibility(ESlateVisibility::Hidden);
+}
+
+void UMainWidget::TurnEnded(const bool bIsAuto) const
+{
+	InputTextBox->SetIsEnabled(false);
+
+	const FString HelpMessageText = bIsAuto ? TEXT("상대 턴 입니다. 다음 턴을 기다리세요.") : TEXT("");
+	SetHelpMessage(HelpMessageText);
 }
 
 void UMainWidget::UpdateTimerText(const FString& InTimerText) const
@@ -56,8 +70,6 @@ void UMainWidget::InitWidget()
 	HelpMessage->SetText(FText::FromString(""));
 	TimerText->SetText(FText::FromString(""));
 
-	ReadyButton->OnClicked.AddDynamic(this, &UMainWidget::OnReadyButtonClicked);
-
 	if (ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<ANumberBaseballPlayerController>(
 		GetOwningPlayer()))
 	{
@@ -65,14 +77,62 @@ void UMainWidget::InitWidget()
 	}
 }
 
-void UMainWidget::SetReadyButtonText()
+void UMainWidget::InitReadyButton(const bool bIsHost)
+{
+	if (ReadyButton && ReadyButton->GetChildAt(0))
+	{
+		// 텍스트 설정
+		if (UTextBlock* ReadyButtonText = Cast<UTextBlock>(ReadyButton->GetChildAt(0)))
+		{
+			ReadyButtonText->SetText(
+				FText::FromString(bIsHost ? TEXT("게임 시작") : TEXT("게임 준비")));
+		}
+
+		// 활성화 설정
+		ReadyButton->SetIsEnabled(!bIsHost);
+
+		// 이벤트 바인딩
+		ReadyButton->OnClicked.AddDynamic(this, &UMainWidget::OnReadyButtonClicked);
+	}
+}
+
+void UMainWidget::SetReadyButtonText(const bool bIsReady) const
 {
 	if (UTextBlock* ReadyButtonText = Cast<UTextBlock>(ReadyButton->GetChildAt(0)))
 	{
-		bIsReady = !bIsReady;
-		
 		ReadyButtonText->SetText(
 			FText::FromString(bIsReady ? TEXT("준비 완료") : TEXT("게임 준비")));
+	}
+}
+
+void UMainWidget::SetReadyButtonIsEnabled(const bool bIsReady) const
+{
+	if (ReadyButton)
+	{
+		ReadyButton->SetIsEnabled(bIsReady);
+	}
+}
+
+void UMainWidget::AddChatWidget(const TSubclassOf<UChatWidget>& ChatWidgetClass, const FString& InPlayerName,
+                                const FString& InInputText)
+{
+	LastChatWidget = CreateWidget<UChatWidget>(this, ChatWidgetClass);
+	if (LastChatWidget)
+	{
+		LastChatWidget->InitWidget(InPlayerName, InInputText);
+		
+		if (ScrollBox)
+		{
+			ScrollBox->AddChild(LastChatWidget);
+		}
+	}
+}
+
+void UMainWidget::UpdateResult(const int32 StrikeCount, const int32 BallCount) const
+{
+	if (LastChatWidget)
+	{
+		LastChatWidget->UpdateResult(StrikeCount, BallCount);
 	}
 }
 
@@ -114,9 +174,6 @@ void UMainWidget::OnTextChanged(const FText& Text)
 // ReSharper disable once CppMemberFunctionMayBeConst
 void UMainWidget::OnReadyButtonClicked()
 {
-	// 버튼 텍스트 변경
-	SetReadyButtonText();
-
 	// 서버로 게임 준비 전달
 	OnReadyButtonClickedDelegate.Broadcast();
 }

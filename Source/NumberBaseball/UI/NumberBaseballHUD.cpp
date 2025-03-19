@@ -14,10 +14,12 @@ void ANumberBaseballHUD::BeginPlay()
 		                                                                JoinGameWidgetClass);
 		JoinGameWidget->InitWidget();
 		JoinGameWidget->AddToViewport();
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("JoinGameWidgetClass가 유효하지 않습니다."));
+
+		if (MainWidgetClass)
+		{
+			MainWidget = CreateWidget<UMainWidget>(GetOwningPlayerController(), MainWidgetClass);
+			MainWidget->InitWidget();
+		}
 	}
 }
 
@@ -28,10 +30,13 @@ void ANumberBaseballHUD::JoinGame() const
 		JoinGameWidget->RemoveFromParent();
 	}
 	
-	if (MainWidgetClass)
+	if (MainWidget)
 	{
-		UMainWidget* MainWidget = CreateWidget<UMainWidget>(GetOwningPlayerController(), MainWidgetClass);
-		MainWidget->InitWidget();
 		MainWidget->AddToViewport();
 	}
+}
+
+void ANumberBaseballHUD::AddChatWidget(const FString& PlayerName, const FString& InputText) const
+{
+	MainWidget->AddChatWidget(ChatWidgetClass, PlayerName, InputText);
 }

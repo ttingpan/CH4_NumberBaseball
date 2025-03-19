@@ -4,12 +4,11 @@
 #include "NumberBaseballPlayerState.h"
 #include "FunctionLibrary/ComparingNumbersLib.h"
 #include "FunctionLibrary/RandomNumberLib.h"
-#include "Kismet/GameplayStatics.h"
 #include "Manager/TurnManager.h"
 #include "Player/NumberBaseballPlayerController.h"
 
 ANumberBaseballGameMode::ANumberBaseballGameMode()
-	: TurnManager(nullptr), TurnDuration(15.0f), MaxTurnCount(3), MaxRound(3), TargetNumberLength(3),
+	: TurnManager(nullptr), TurnDuration(15.0f), MaxTurnCount(3), MaxGameRound(3), TargetNumberLength(3),
 	  RequiredReadyCount(2),
 	  JoinedPlayerCount(0), ReadyCount(0)
 {
@@ -26,6 +25,7 @@ void ANumberBaseballGameMode::BeginPlay()
 	{
 		// 턴 매니저 생성
 		TurnManager = GetWorld()->SpawnActor<ATurnManager>(TurnManagerClass);
+		// 턴 매니저 초기화
 		TurnManager->InitTurnManager(TurnDuration, MaxTurnCount);
 
 		// 게임 스테이트에 턴 매니저 저장
@@ -37,17 +37,23 @@ void ANumberBaseballGameMode::BeginPlay()
 	}
 }
 
-void ANumberBaseballGameMode::JoinGame(const ANumberBaseballPlayerController* PlayerController,
+void ANumberBaseballGameMode::JoinGame(ANumberBaseballPlayerController* PlayerController,
                                        const FString& PlayerName)
 {
 	if (PlayerController && PlayerController->PlayerState)
 	{
+		if (JoinedPlayerCount == 2)
+		{
+			UE_LOG(LogTemp, Error, TEXT("더 이상 참가할 수 없습니다."));
+			return;
+		}
+
 		JoinedPlayerCount++;
 		PlayerController->PlayerState->SetPlayerName(PlayerName);
 		if (ANumberBaseballGameState* NumberBaseballGameState = GetGameState<ANumberBaseballGameState>())
 		{
-			// 플레이어 이름 등록
-			NumberBaseballGameState->RegisterPlayerName(PlayerName);
+			// 플레이어 등록
+			NumberBaseballGameState->RegisterPlayer(PlayerController, PlayerName);
 		}
 	}
 }
@@ -87,35 +93,73 @@ void ANumberBaseballGameMode::StartGame()
 		if (ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<
 			ANumberBaseballPlayerController>(It->Get()))
 		{
-			NumberBaseballPlayerController->GameStarted(TargetNumberLength);
+			NumberBaseballPlayerController->Client_PrepareGameStart(TargetNumberLength);
 		}
 	}
 
-	TurnManager->StartTurn();
+	TurnManager->PrepareTurnStart();
 }
 
-void ANumberBaseballGameMode::Server_GotInputText_Implementation(const FString& UserID, const FString& InputText) const
+
+void ANumberBaseballGameMode::SendInputText(const int32 StrikeCount, const int32 BallCount)
 {
-	// 모든 플레이어 찾기
-	TArray<AActor*> Actors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANumberBaseballPlayerController::StaticClass(), Actors);
-
-	// 숫자 비교
-	const FString CompareResult = UComparingNumbersLib::ComparingNumbers(InputText, TargetNumber);
-	// 메세지 생성
-	const FString NewMessage = FString::Printf(TEXT("%s가 입력한 %s의 결과: %s"), *UserID, *InputText, *CompareResult);
-
-	for (AActor*& Actor : Actors)
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
-		if (const ANumberBaseballPlayerController* Controller = Cast<ANumberBaseballPlayerController>(Actor))
+		if (ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<
+			ANumberBaseballPlayerController>(It->Get()))
 		{
 			// 플레이어에게 결과 전달
-			Controller->Client_GotInputText(NewMessage);
+			NumberBaseballPlayerController->Client_UpdateResult(StrikeCount, BallCount);
 		}
 	}
+
+	FTimerHandle TimerHandle;
+	FTimerDelegate TimerDelegate;
+	TimerDelegate.BindLambda(
+		[TurnManager = TurnManager]()
+		{
+			TurnManager->StartTurn();
+		});
+	GetWorldTimerManager().SetTimer(TimerHandle, TimerDelegate, 0.5f, false);
 }
 
-bool ANumberBaseballGameMode::Server_GotInputText_Validate(const FString& UserID, const FString& InputText)
+void ANumberBaseballGameMode::Server_GotInputText_Implementation(const FString& PlayerName, const FString& InputText)
+{
+	// 즉시 턴 종료
+	if (TurnManager)
+	{
+		TurnManager->EndTurn(false);
+	}
+
+	int32 StrikeCount = 0;
+	int32 BallCount = 0;
+	// 숫자 비교
+	UComparingNumbersLib::ComparingNumbers(InputText, TargetNumber, StrikeCount, BallCount);
+	// 결과
+	const FString Result =
+		FString::Printf(TEXT("%s가 입력한 %s의 결과: %dS %dB"), *PlayerName, *InputText, StrikeCount, BallCount);
+
+	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	{
+		if (const ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<
+			ANumberBaseballPlayerController>(It->Get()))
+		{
+			// 채팅 위젯 추가
+			NumberBaseballPlayerController->Client_AddChatWidget(PlayerName, InputText);
+		}
+	}
+
+	FTimerHandle TimerHandle;
+	const FTimerDelegate TimerDelegate = FTimerDelegate::CreateUObject(
+		this,
+		&ANumberBaseballGameMode::SendInputText,
+		StrikeCount,
+		BallCount
+	);
+	GetWorldTimerManager().SetTimer(TimerHandle, TimerDelegate, 1.5f, false);
+}
+
+bool ANumberBaseballGameMode::Server_GotInputText_Validate(const FString& PlayerName, const FString& InputText)
 {
 	// 필요시 유효성 체크 로직 구현
 	return true;

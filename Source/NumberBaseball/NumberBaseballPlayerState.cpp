@@ -2,7 +2,6 @@
 
 #include "NumberBaseballGameMode.h"
 #include "NumberBaseballGameState.h"
-#include "Player/NumberBaseballPlayerController.h"
 
 void ANumberBaseballPlayerState::GameReady()
 {
@@ -10,5 +9,17 @@ void ANumberBaseballPlayerState::GameReady()
 	{
 		bIsReady = !bIsReady;
 		NumberBaseballGameMode->PlayerReady(GetPlayerName(), bIsReady);
+
+		// 준비 버튼 텍스트 변경
+		Cast<ANumberBaseballPlayerController>(GetPlayerController())->Client_SetReadyButtonText(bIsReady);
+
+		// Host(방장) 버튼 설정
+		ANumberBaseballGameState* NumberBaseballGameState
+			= NumberBaseballGameMode->GetGameState<ANumberBaseballGameState>();
+
+		if (NumberBaseballGameState->GetPlayerControllerByIndex(0) != GetPlayerController())
+		{
+			NumberBaseballGameState->GetPlayerControllerByIndex(0)->Client_SetReadyButtonIsEnabled(bIsReady);
+		}
 	}
 }

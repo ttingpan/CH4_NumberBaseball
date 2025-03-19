@@ -1,9 +1,8 @@
 ﻿#include "ComparingNumbersLib.h"
 
-FString UComparingNumbersLib::ComparingNumbers(const FString& InputNumber, const FString& TargetNumber)
+void UComparingNumbersLib::ComparingNumbers(const FString& InputNumber, const FString& TargetNumber,
+                                            int32& OutStrikeCount, int32& OutBallCount)
 {
-	int32 StrikeCount = 0;
-	int32 BallCount = 0;
 	for (int32 i = 0; i < InputNumber.Len(); i++)
 	{
 		TCHAR InputChar = InputNumber[i];
@@ -14,20 +13,13 @@ FString UComparingNumbersLib::ComparingNumbers(const FString& InputNumber, const
 			// 해당 문자가 TargetNumber에 존재하고, 위치도 같은지 확인
 			if (InputChar == TargetNumber[i])
 			{
-				StrikeCount++;
+				OutStrikeCount++;
 			}
 			// TargetNumber에 존재하지만, 위치가 다른 경우
 			else
 			{
-				BallCount++;
+				OutBallCount++;
 			}
 		}
 	}
-	
-	if (StrikeCount == 0 && BallCount == 0)
-	{
-		return TEXT("OUT");
-	}
-
-	return FString::Printf(TEXT("%dS %dB"), StrikeCount, BallCount);
 }

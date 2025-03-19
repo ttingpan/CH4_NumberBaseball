@@ -5,6 +5,8 @@
 
 #include "MainWidget.generated.h"
 
+class UChatWidget;
+class UScrollBox;
 class ATurnManager;
 class UButton;
 class ANumberBaseballHUD;
@@ -22,9 +24,12 @@ class NUMBERBASEBALL_API UMainWidget : public UUserWidget
 public:
 	// 상대 이름 설정
 	void SetOtherPlayerName(const FString& InOtherPlayerName) const;
-	// 게임 시작
-	void GameStarted(int32 InTargetNumberLength);
-
+	// 게임 시작 준비
+	void PrepareStartTurn(int32 InTargetNumberLength);
+	// 턴 시작
+	void TurnStarted() const;
+	// 턴 종료
+	void TurnEnded(bool bIsAuto) const;
 	// 타이머 텍스트 업데이트
 	void UpdateTimerText(const FString& InTimerText) const;
 
@@ -33,8 +38,17 @@ public:
 	void SetHelpMessage(const FString& InHelpMessage) const;
 	// 위젯 초기화
 	void InitWidget();
+	// 준비 버튼 초기화
+	void InitReadyButton(bool bIsHost);
 	// 준비 버튼 텍스트 설정
-	void SetReadyButtonText();
+	void SetReadyButtonText(bool bIsReady) const;
+	// 게임 시작 버튼 활성화
+	void SetReadyButtonIsEnabled(bool bIsReady) const;
+
+	// 채팅 위젯 추가
+	void AddChatWidget(const TSubclassOf<UChatWidget>& ChatWidgetClass, const FString& InPlayerName, const FString& InInputText);
+	// 판정 결과 업데이트
+	void UpdateResult(int32 StrikeCount, int32 BallCount) const;
 
 	// 커밋 델리게이트
 	UPROPERTY()
@@ -61,10 +75,12 @@ private:
 	UButton* ReadyButton;
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* TimerText;
+	UPROPERTY(meta = (BindWidget))
+	UScrollBox* ScrollBox;
 	
 	// 목표 글자 수
 	int32 TargetNumberLength = 0;
 
-	// 준비 여부
-	bool bIsReady = false;
+	UPROPERTY()
+	UChatWidget* LastChatWidget;
 };

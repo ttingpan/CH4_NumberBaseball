@@ -2,12 +2,11 @@
 
 #include "NumberBaseballPlayerController.h"
 
-#include "NumberBaseballGameState.h"
 #include "NumberBaseballPlayerState.h"
 #include "GameFramework/GameUserSettings.h"
-#include "Manager/TurnManager.h"
 #include "NumberBaseball/NumberBaseballGameMode.h"
 #include "UI/MainWidget.h"
+#include "UI/NumberBaseballHUD.h"
 
 void ANumberBaseballPlayerController::BeginPlay()
 {
@@ -36,21 +35,71 @@ void ANumberBaseballPlayerController::ChangeGameResolution()
 	}
 }
 
-void ANumberBaseballPlayerController::Client_OnTurnUpdated_Implementation(float RemainingTime)
+void ANumberBaseballPlayerController::Client_OnTurnStarted_Implementation()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Update TEST"));
+	if (MainWidget)
+	{
+		MainWidget->TurnStarted();
+	}
+}
+
+void ANumberBaseballPlayerController::Client_InitReadyButton_Implementation(const bool bIsHost)
+{
+	if (MainWidget)
+	{
+		MainWidget->InitReadyButton(bIsHost);
+	}
+}
+
+void ANumberBaseballPlayerController::Client_OnTurnEnded_Implementation(const bool bIsAuto)
+{
+	if (MainWidget)
+	{
+		MainWidget->TurnEnded(bIsAuto);
+	}
+}
+
+void ANumberBaseballPlayerController::Client_OnTurnUpdated_Implementation(const float RemainingTime)
+{
 	if (MainWidget)
 	{
 		MainWidget->UpdateTimerText(FString::FromInt(RemainingTime));
 	}
 }
 
-// ReSharper disable once CppMemberFunctionMayBeConst
-void ANumberBaseballPlayerController::OnTurnEnded()
+void ANumberBaseballPlayerController::Client_SetReadyButtonText_Implementation(const bool bIsReady)
 {
 	if (MainWidget)
 	{
-		//TODO: 턴 종료 이벤트 추가
+		MainWidget->SetReadyButtonText(bIsReady);
+	}
+}
+
+void ANumberBaseballPlayerController::Client_SetReadyButtonIsEnabled_Implementation(const bool bIsReady)
+{
+	if (MainWidget)
+	{
+		MainWidget->SetReadyButtonIsEnabled(bIsReady);
+	}
+}
+
+void ANumberBaseballPlayerController::Client_AddChatWidget_Implementation(const FString& PlayerName,
+	const FString& InputText) const
+{
+	if (GetHUD())
+	{
+		if (const ANumberBaseballHUD* NumberBaseballHUD = Cast<ANumberBaseballHUD>(GetHUD()))
+		{
+			NumberBaseballHUD->AddChatWidget(PlayerName, InputText);
+		}
+	}
+}
+
+void ANumberBaseballPlayerController::Client_UpdateResult_Implementation(const int32 StrikeCount, const int32 BallCount)
+{
+	if (MainWidget)
+	{
+		MainWidget->UpdateResult(StrikeCount, BallCount);
 	}
 }
 
@@ -86,11 +135,11 @@ bool ANumberBaseballPlayerController::Server_JoinGame_Validate(const FString& Pl
 	return true;
 }
 
-void ANumberBaseballPlayerController::GameStarted_Implementation(const int32& TargetNumberLength)
+void ANumberBaseballPlayerController::Client_PrepareGameStart_Implementation(const int32& TargetNumberLength)
 {
 	if (MainWidget)
 	{
-		MainWidget->GameStarted(TargetNumberLength);
+		MainWidget->PrepareStartTurn(TargetNumberLength);
 	}
 }
 
@@ -110,15 +159,12 @@ bool ANumberBaseballPlayerController::Server_ReadyButtonClicked_Validate()
 void ANumberBaseballPlayerController::Client_GotInputText_Implementation(const FString& Message) const
 {
 	// 서버 스스로 호출하지 않도록 방어
-	if (!HasAuthority())
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Client_GotInputText: %s"), *Message);
-	}
+	UE_LOG(LogTemp, Warning, TEXT("Client_GotInputText: %s"), *Message);
 }
 
 void ANumberBaseballPlayerController::Server_SetInputText_Implementation(const FString& InputText)
 {
-	if (const ANumberBaseballGameMode* GameMode = Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode()))
+	if (ANumberBaseballGameMode* GameMode = Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode()))
 	{
 		GameMode->Server_GotInputText(PlayerState->GetPlayerName(), InputText);
 	}

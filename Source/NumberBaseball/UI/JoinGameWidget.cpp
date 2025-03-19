@@ -38,10 +38,10 @@ void UJoinGameWidget::OnJoinButtonClicked()
 			FString PlayerName = PlayerNameTextBox->GetText().ToString();
 			if (PlayerName.IsEmpty())
 			{
-				PlayerName = TEXT("Unknown");				
+				PlayerName = TEXT("Unknown");
 			}
-			NumberBaseballHUD->JoinGame();
 			NumberBaseballPlayerController->Server_JoinGame(PlayerName);
+			NumberBaseballHUD->JoinGame();
 		}
 	}
 }

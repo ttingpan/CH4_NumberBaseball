@@ -10,35 +10,60 @@ void ATurnManager::InitTurnManager(const float InTurnDuration, const int32 InMax
 {
 	TurnDuration = InTurnDuration;
 	RemainingTime = TurnDuration;
-	MaxTurnCount = InMaxTurnCount;
-	CurrentTurnCount = 0;
+	MaxTurnCount = InMaxTurnCount * 2;
+	CurrentTurnCount = -1;
+}
+
+void ATurnManager::PrepareTurnStart()
+{
+	const float DefaultTurnDuration = TurnDuration;
+	TurnDuration = 3.0f;
+
+	StartTurn();
+
+	TurnDuration = DefaultTurnDuration;
 }
 
 void ATurnManager::StartTurn()
 {
 	RemainingTime = TurnDuration;
 
-	OnTurnUpdated.Broadcast(RemainingTime);
+	// 턴 증가
+	CurrentTurnCount++;
+
+	// 준비 턴에선 시작 x
+	if (CurrentTurnCount > 0)
+	{
+		OnTurnStarted.Broadcast();
+	}
 	
+	OnTurnUpdated.Broadcast(RemainingTime);
+
 	GetWorldTimerManager().SetTimer(TurnTimerHandle, this, &ATurnManager::UpdateTurn, 1.0f, true);
 }
 
-void ATurnManager::EndTurn()
+void ATurnManager::EndTurn(const bool bIsAuto)
 {
 	GetWorldTimerManager().ClearTimer(TurnTimerHandle);
-	OnTurnEnded.Broadcast();
+	
+	if (bIsAuto)
+	{
+		OnTurnEnded.Broadcast();
+	}
+	else
+	{
+		OnTurnEndedImmediately.Broadcast();
+	}
 }
 
 void ATurnManager::UpdateTurn()
 {
 	RemainingTime -= 1.0f;
+
+	OnTurnUpdated.Broadcast(RemainingTime);
+
 	if (RemainingTime <= 0.0f)
 	{
 		EndTurn();
 	}
-	else
-	{
-		OnTurnUpdated.Broadcast(RemainingTime);
-	}
 }
-
