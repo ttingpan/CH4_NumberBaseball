@@ -4,6 +4,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "NumberBaseballGameState.generated.h"
 
+class ANumberBaseballPlayerState;
 class ANumberBaseballPlayerController;
 class ATurnManager;
 
@@ -15,12 +16,11 @@ class NUMBERBASEBALL_API ANumberBaseballGameState : public AGameStateBase
 public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 
-	// 플레이어 등록
-	void RegisterPlayer(ANumberBaseballPlayerController* PlayerController, const FString& PlayerName);
-
-	// 상대 이름 등록
-	UFUNCTION(NetMulticast, Unreliable)
-	void Multicast_UpdateOtherPlayerName();
+	// 게임 참가
+	UFUNCTION(Server, Reliable, WithValidation)
+	void Server_JoinGame();
+	// 다른 플레이어 참가
+	void JoinOtherPlayer();
 
 	// 턴 매니저 이벤트 바인딩
 	void BindTurnManagerEvent();
@@ -41,29 +41,29 @@ public:
 	UFUNCTION()
 	void StartNextRound() const;
 
-	FORCEINLINE ANumberBaseballPlayerController* GetPlayerControllerByIndex(const int32 Index)
-	{
-		return PlayerControllers[Index];
-	}
+	int32 GetIndexByPlayerID(const FUniqueNetIdRepl& PlayerID) const;
 
+	ANumberBaseballPlayerController* GetPlayerControllerByUniqueID(const FUniqueNetIdRepl& PlayerID) const;
+	ANumberBaseballPlayerController* GetPlayerControllerByIndex(const int32 Index) const;
+
+	FORCEINLINE void GetJoinedPlayerIDs(TArray<FUniqueNetIdRepl>& OutJoinedPlayerIDs) const { OutJoinedPlayerIDs = JoinedPlayerIDs; }
 	FORCEINLINE ATurnManager* GetTurnManager() const { return TurnManager; }
 	FORCEINLINE void SetTurnManager(ATurnManager* InTurnManager) { TurnManager = InTurnManager; }
 
 private:
-	
-	// 게임에 참여한 플레이어 이름 목록
-	UPROPERTY(Replicated)
-	TArray<FString> PlayerNames;
+	UFUNCTION()
+	void OnRep_JoinedPlayerIDs();
 
-	UPROPERTY(Replicated)
-	TArray<ANumberBaseballPlayerController*> PlayerControllers;
+	// 게임에 참여한 플레이어 아이디 목록
+	UPROPERTY(ReplicatedUsing=OnRep_JoinedPlayerIDs)
+	TArray<FUniqueNetIdRepl> JoinedPlayerIDs;
 
 	// 현재 턴 플레이어 인덱스
 	UPROPERTY(Replicated)
 	int32 CurrentTurnPlayerIndex = 0;
 	// 턴 매니저
 	UPROPERTY(Replicated)
-	ATurnManager* TurnManager;
+	TObjectPtr<ATurnManager> TurnManager;
 	// 현재 게임 라운드
 	UPROPERTY(Replicated)
 	int32 CurrentRound = 1;

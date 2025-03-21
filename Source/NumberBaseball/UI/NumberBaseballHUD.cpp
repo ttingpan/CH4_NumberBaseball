@@ -18,7 +18,7 @@ void ANumberBaseballHUD::BeginPlay()
 		if (MainWidgetClass)
 		{
 			MainWidget = CreateWidget<UMainWidget>(GetOwningPlayerController(), MainWidgetClass);
-			MainWidget->InitWidget();
+			MainWidget->InitWidget(PlayerSlotWidgetClass);
 		}
 	}
 }

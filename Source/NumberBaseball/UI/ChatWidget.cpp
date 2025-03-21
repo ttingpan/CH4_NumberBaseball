@@ -10,7 +10,10 @@ void UChatWidget::InitWidget(const FString& InPlayerName, const FString& InInput
 	StrikeText->SetText(FText::FromString(TEXT("")));
 	BallText->SetText(FText::FromString(TEXT("")));
 
+	StrikeText->GetParent()->SetVisibility(ESlateVisibility::Hidden);
+	BallText->GetParent()->SetVisibility(ESlateVisibility::Hidden);
 	OutTextBorder->SetVisibility(ESlateVisibility::Hidden);
+	HitTextBorder->SetVisibility(ESlateVisibility::Hidden);
 }
 
 void UChatWidget::UpdateResult(const int32 StrikeCount, const int32 BallCount) const
@@ -18,13 +21,17 @@ void UChatWidget::UpdateResult(const int32 StrikeCount, const int32 BallCount) c
 	if (StrikeCount == 0 && BallCount == 0)
 	{
 		OutTextBorder->SetVisibility(ESlateVisibility::Visible);
-
-		StrikeText->GetParent()->SetVisibility(ESlateVisibility::Hidden);
-		BallText->GetParent()->SetVisibility(ESlateVisibility::Hidden);
+	}
+	else if (StrikeCount == 3)
+	{
+		HitTextBorder->SetVisibility(ESlateVisibility::Visible);
 	}
 	else
 	{
 		StrikeText->SetText(FText::FromString(FString::Printf(TEXT("%iS"), StrikeCount)));
 		BallText->SetText(FText::FromString(FString::Printf(TEXT("%iB"), BallCount)));
+		
+		StrikeText->GetParent()->SetVisibility(ESlateVisibility::Visible);
+		BallText->GetParent()->SetVisibility(ESlateVisibility::Visible);
 	}
 }

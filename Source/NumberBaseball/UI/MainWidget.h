@@ -5,6 +5,8 @@
 
 #include "MainWidget.generated.h"
 
+class UVerticalBox;
+class UPlayerSlotWidget;
 class UChatWidget;
 class UScrollBox;
 class ATurnManager;
@@ -14,6 +16,7 @@ class UTextBlock;
 class UEditableTextBox;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnInputCommitted, const FString&, InputText);
+
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnReadyButtonClicked);
 
 UCLASS(Abstract)
@@ -22,8 +25,11 @@ class NUMBERBASEBALL_API UMainWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	// 상대 이름 설정
-	void SetOtherPlayerName(const FString& InOtherPlayerName) const;
+	// 플레이어 참가
+	void SetPlayerName(int32 Index, const FString& PlayerName);
+	// 특정 플레이어 슬롯 위젯 업데이트
+	void UpdatePlayerSlotWidgetByIndex(int32 Index, bool bIsMyTurn);
+
 	// 게임 시작 준비
 	void PrepareStartTurn(int32 InTargetNumberLength);
 	// 턴 시작
@@ -37,7 +43,7 @@ public:
 	void SetHelpMessage() const;
 	void SetHelpMessage(const FString& InHelpMessage) const;
 	// 위젯 초기화
-	void InitWidget();
+	void InitWidget(const TSubclassOf<UPlayerSlotWidget>& PlayerSlotWidgetClass);
 	// 준비 버튼 초기화
 	void InitReadyButton(bool bIsHost);
 	// 준비 버튼 텍스트 설정
@@ -46,7 +52,8 @@ public:
 	void SetReadyButtonIsEnabled(bool bIsReady) const;
 
 	// 채팅 위젯 추가
-	void AddChatWidget(const TSubclassOf<UChatWidget>& ChatWidgetClass, const FString& InPlayerName, const FString& InInputText);
+	void AddChatWidget(const TSubclassOf<UChatWidget>& ChatWidgetClass, const FString& InPlayerName,
+	                   const FString& InInputText);
 	// 판정 결과 업데이트
 	void UpdateResult(int32 StrikeCount, int32 BallCount) const;
 
@@ -56,7 +63,7 @@ public:
 	// 준비 버튼 델리게이트
 	UPROPERTY()
 	FOnReadyButtonClicked OnReadyButtonClickedDelegate;
-	
+
 private:
 	UFUNCTION()
 	void OnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
@@ -70,14 +77,21 @@ private:
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* HelpMessage;
 	UPROPERTY(meta = (BindWidget))
-	UTextBlock* OtherPlayerName;
-	UPROPERTY(meta = (BindWidget))
 	UButton* ReadyButton;
+	// UPROPERTY(meta = (BindWidget))
+	// UTextBlock* RoundText;
+	// UPROPERTY(meta = (BindWidget))
+	// UTextBlock* TurnText;
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* TimerText;
 	UPROPERTY(meta = (BindWidget))
 	UScrollBox* ScrollBox;
-	
+	UPROPERTY(meta = (BindWidget))
+	UVerticalBox* PlayerSlotWidgetVerticalBox;
+
+	// 모든 플레이어 슬롯 위젯 목록
+	TArray<TObjectPtr<UPlayerSlotWidget>> PlayerSlotWidgets;
+
 	// 목표 글자 수
 	int32 TargetNumberLength = 0;
 

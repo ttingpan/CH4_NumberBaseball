@@ -4,6 +4,7 @@
 #include "GameFramework/HUD.h"
 #include "NumberBaseballHUD.generated.h"
 
+class UPlayerSlotWidget;
 class UChatWidget;
 class UJoinGameWidget;
 class UMainWidget;
@@ -36,5 +37,8 @@ private:
 	// 채팅 위젯
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UChatWidget> ChatWidgetClass;
-	
+
+	// 플레이어 슬롯 위젯
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UPlayerSlotWidget> PlayerSlotWidgetClass;
 };

@@ -7,7 +7,7 @@
 class UBorder;
 class UTextBlock;
 
-UCLASS()
+UCLASS(Abstract)
 class NUMBERBASEBALL_API UChatWidget : public UUserWidget
 {
 	GENERATED_BODY()
@@ -28,4 +28,6 @@ private:
 	UTextBlock* BallText;
 	UPROPERTY(meta = (BindWidget))
 	UBorder* OutTextBorder;
+	UPROPERTY(meta = (BindWidget))
+	UBorder* HitTextBorder;
 };

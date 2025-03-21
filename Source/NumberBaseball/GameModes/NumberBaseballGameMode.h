@@ -17,20 +17,19 @@ public:
 	ANumberBaseballGameMode();
 
 	virtual void BeginPlay() override;
-
-	// 게임 참가
-	void JoinGame(ANumberBaseballPlayerController* PlayerController, const FString& PlayerName);
+	
 	// 플레이어 준비 완료
-	void PlayerReady(const FString& PlayerName, bool bIsReady);
+	void PlayerReady(bool bIsReady);
 	// 게임 시작
 	void StartGame();
 
 	// 클라이언트로부터 메세지를 받았을 때 동작
-	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_GotInputText(const FString& PlayerName, const FString& InputText);
+	void GotInputText(int32 PlayerID, const FString& InputText);
+
+	// 시간 초과로 턴이 종료 되었을 때
+	void TurnTimeOver(int32 JoinedIndex) const;
 
 	// 클라이언트에게 결과 전달
-	UFUNCTION()
 	void SendInputText(int32 StrikeCount, int32 BallCount);
 
 	// 랜덤 숫자 길이 반환
@@ -67,8 +66,6 @@ private:
 
 	// 랜덤 숫자
 	FString TargetNumber;
-	// 게임에 참여한 플레이어 수
-	int32 JoinedPlayerCount;
 	// 준비한 플레이어 수
 	int32 ReadyCount;
 };

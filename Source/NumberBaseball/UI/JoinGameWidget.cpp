@@ -1,6 +1,5 @@
 ﻿#include "JoinGameWidget.h"
 
-#include "NumberBaseballHUD.h"
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "FunctionLibrary/InputValidationLib.h"
@@ -30,18 +29,15 @@ void UJoinGameWidget::OnTextChanged(const FText& Text)
 // ReSharper disable once CppMemberFunctionMayBeConst
 void UJoinGameWidget::OnJoinButtonClicked()
 {
-	if (const ANumberBaseballHUD* NumberBaseballHUD = Cast<ANumberBaseballHUD>(GetOwningPlayer()->GetHUD()))
-	{
-		if (ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<ANumberBaseballPlayerController>(
+	if (const ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<ANumberBaseballPlayerController>(
 			GetOwningPlayer()))
+	{
+		FString PlayerName = PlayerNameTextBox->GetText().ToString();
+		if (PlayerName.IsEmpty())
 		{
-			FString PlayerName = PlayerNameTextBox->GetText().ToString();
-			if (PlayerName.IsEmpty())
-			{
-				PlayerName = TEXT("Unknown");
-			}
-			NumberBaseballPlayerController->Server_JoinGame(PlayerName);
-			NumberBaseballHUD->JoinGame();
+			PlayerName = TEXT("Unknown");
 		}
+		
+		NumberBaseballPlayerController->SetPlayerName(PlayerName);
 	}
 }
