@@ -1,5 +1,6 @@
 #include "MainWidget.h"
 
+#include "ChatRoundNotifyWidget.h"
 #include "ChatWidget.h"
 #include "PlayerSlotWidget.h"
 #include "Components/Button.h"
@@ -11,6 +12,68 @@
 #include "Components/VerticalBoxSlot.h"
 #include "FunctionLibrary/InputValidationLib.h"
 #include "Player/NumberBaseballPlayerController.h"
+
+void UMainWidget::InitWidget(const TSubclassOf<UPlayerSlotWidget>& PlayerSlotWidgetClass)
+{
+	// 커밋 이벤트 바인딩
+	InputTextBox->OnTextCommitted.AddDynamic(this, &UMainWidget::OnTextCommitted);
+	// 텍스트 변경 이벤트 바인딩
+	InputTextBox->OnTextChanged.AddDynamic(this, &UMainWidget::OnTextChanged);
+
+	InputTextBox->SetIsEnabled(false);
+
+	HelpMessage->SetText(FText::FromString(""));
+
+	RoundText->SetText(FText::FromString("Round 1"));
+	TurnText->SetText(FText::FromString("Turn 1"));
+	TimerText->SetText(FText::FromString(""));
+
+	for (int32 i = 0; i < 4; i++)
+	{
+		if (UPlayerSlotWidget* PlayerSlotWidget = CreateWidget<UPlayerSlotWidget>(this, PlayerSlotWidgetClass))
+		{
+			PlayerSlotWidget->InitWidget(i);
+			PlayerSlotWidgets.Add(PlayerSlotWidget);
+
+			// 세로 박스에 위젯 추가
+			if (UVerticalBoxSlot* VerticalBoxSlot = PlayerSlotWidgetVerticalBox->
+				AddChildToVerticalBox(PlayerSlotWidget))
+			{
+				// 채우기 설정
+				VerticalBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+				// 가로 설정
+				VerticalBoxSlot->SetHorizontalAlignment(HAlign_Fill);
+				//세로 설정
+				VerticalBoxSlot->SetVerticalAlignment(VAlign_Center);
+			}
+		}
+	}
+
+	if (ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<ANumberBaseballPlayerController>(
+		GetOwningPlayer()))
+	{
+		NumberBaseballPlayerController->SetMainWidget(this);
+	}
+}
+
+void UMainWidget::InitReadyButton(const bool bIsHost)
+{
+	if (ReadyButton && ReadyButton->GetChildAt(0))
+	{
+		// 텍스트 설정
+		if (UTextBlock* ReadyButtonText = Cast<UTextBlock>(ReadyButton->GetChildAt(0)))
+		{
+			ReadyButtonText->SetText(
+				FText::FromString(bIsHost ? TEXT("게임 시작") : TEXT("게임 준비")));
+		}
+
+		// 활성화 설정
+		ReadyButton->SetIsEnabled(!bIsHost);
+
+		// 이벤트 바인딩
+		ReadyButton->OnClicked.AddDynamic(this, &UMainWidget::OnReadyButtonClicked);
+	}
+}
 
 void UMainWidget::SetPlayerName(const int32 Index, const FString& PlayerName)
 {
@@ -54,6 +117,18 @@ void UMainWidget::UpdateTimerText(const FString& InTimerText) const
 	TimerText->SetText(FText::FromString(InTimerText));
 }
 
+void UMainWidget::UpdateRoundText(const int32 CurrentRound) const
+{
+	const FString NewRoundText = TEXT("Round ") + FString::FromInt(CurrentRound);
+	RoundText->SetText(FText::FromString(NewRoundText));
+}
+
+void UMainWidget::UpdateTurnText(const int32 CurrentTurn) const
+{
+	const FString NewTurnText = TEXT("Turn ") + FString::FromInt(CurrentTurn);
+	TurnText->SetText(FText::FromString(NewTurnText));
+}
+
 void UMainWidget::SetHelpMessage() const
 {
 	// 도움말 메세지 설정
@@ -66,64 +141,6 @@ void UMainWidget::SetHelpMessage(const FString& InHelpMessage) const
 	if (HelpMessage)
 	{
 		HelpMessage->SetText(FText::FromString(InHelpMessage));
-	}
-}
-
-void UMainWidget::InitWidget(const TSubclassOf<UPlayerSlotWidget>& PlayerSlotWidgetClass)
-{
-	// 커밋 이벤트 바인딩
-	InputTextBox->OnTextCommitted.AddDynamic(this, &UMainWidget::OnTextCommitted);
-	// 텍스트 변경 이벤트 바인딩
-	InputTextBox->OnTextChanged.AddDynamic(this, &UMainWidget::OnTextChanged);
-
-	InputTextBox->SetIsEnabled(false);
-
-	HelpMessage->SetText(FText::FromString(""));
-	TimerText->SetText(FText::FromString(""));
-
-	for (int32 i = 0; i < 4; i++)
-	{
-		if (UPlayerSlotWidget* PlayerSlotWidget = CreateWidget<UPlayerSlotWidget>(this, PlayerSlotWidgetClass))
-		{
-			PlayerSlotWidget->InitWidget(i);
-			PlayerSlotWidgets.Add(PlayerSlotWidget);
-
-			// 세로 박스에 위젯 추가
-			if (UVerticalBoxSlot* VerticalBoxSlot = PlayerSlotWidgetVerticalBox->AddChildToVerticalBox(PlayerSlotWidget))
-			{
-				// 채우기 설정
-				VerticalBoxSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-				// 가로 설정
-				VerticalBoxSlot->SetHorizontalAlignment(HAlign_Fill);
-				//세로 설정
-				VerticalBoxSlot->SetVerticalAlignment(VAlign_Center);
-			}
-		}
-	}
-
-	if (ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<ANumberBaseballPlayerController>(
-		GetOwningPlayer()))
-	{
-		NumberBaseballPlayerController->SetMainWidget(this);
-	}
-}
-
-void UMainWidget::InitReadyButton(const bool bIsHost)
-{
-	if (ReadyButton && ReadyButton->GetChildAt(0))
-	{
-		// 텍스트 설정
-		if (UTextBlock* ReadyButtonText = Cast<UTextBlock>(ReadyButton->GetChildAt(0)))
-		{
-			ReadyButtonText->SetText(
-				FText::FromString(bIsHost ? TEXT("게임 시작") : TEXT("게임 준비")));
-		}
-
-		// 활성화 설정
-		ReadyButton->SetIsEnabled(!bIsHost);
-
-		// 이벤트 바인딩
-		ReadyButton->OnClicked.AddDynamic(this, &UMainWidget::OnReadyButtonClicked);
 	}
 }
 
@@ -164,6 +181,29 @@ void UMainWidget::UpdateResult(const int32 StrikeCount, const int32 BallCount) c
 	if (LastChatWidget)
 	{
 		LastChatWidget->UpdateResult(StrikeCount, BallCount);
+	}
+}
+
+void UMainWidget::UpdateScore(const int32 Index, const int32 Score)
+{
+	if (PlayerSlotWidgets[Index])
+	{
+		PlayerSlotWidgets[Index]->UpdateScore(Score);
+	}
+}
+
+void UMainWidget::AddChatRoundNotifyWidget(const TSubclassOf<UChatRoundNotifyWidget>& ChatRoundNotifyWidgetClass,
+                                           const int32 CurrentRound, const bool bIsStart)
+{
+	LastChatRoundNotifyWidget = CreateWidget<UChatRoundNotifyWidget>(this, ChatRoundNotifyWidgetClass);
+	if (LastChatRoundNotifyWidget)
+	{
+		LastChatRoundNotifyWidget->InitWidget(CurrentRound, bIsStart);
+
+		if (ScrollBox)
+		{
+			ScrollBox->AddChild(LastChatRoundNotifyWidget);
+		}
 	}
 }
 

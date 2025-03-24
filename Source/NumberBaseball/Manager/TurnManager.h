@@ -42,6 +42,12 @@ public:
 	// 현재 최대 턴인지 확인
 	FORCEINLINE bool IsMaxTurn() const { return CurrentTurnCount == MaxTurnCount; }
 
+	// 현재 턴 설정
+	FORCEINLINE void SetCurrentTurnCount(const int32 InCurrentTurnCount)
+	{
+		CurrentTurnCount = InCurrentTurnCount;
+	}
+
 	// 턴 시작 이벤트
 	FTurnStarted OnTurnStarted;
 	// 남은 시간 업데이트 이벤트
@@ -63,7 +69,7 @@ private:
 	// 타이머 핸들
 	FTimerHandle TurnTimerHandle;
 
-	// 최대 턴 횟수 => 플레이어 1 입력, 플레이어 2 입력 = 1턴
+	// 최대 턴 횟수
 	int32 MaxTurnCount;
 	// 현재 턴 수
 	int32 CurrentTurnCount;

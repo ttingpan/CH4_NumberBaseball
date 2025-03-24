@@ -5,6 +5,7 @@
 
 #include "MainWidget.generated.h"
 
+class UChatRoundNotifyWidget;
 class UVerticalBox;
 class UPlayerSlotWidget;
 class UChatWidget;
@@ -25,6 +26,11 @@ class NUMBERBASEBALL_API UMainWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	// 위젯 초기화
+	void InitWidget(const TSubclassOf<UPlayerSlotWidget>& PlayerSlotWidgetClass);
+	// 준비 버튼 초기화
+	void InitReadyButton(bool bIsHost);
+
 	// 플레이어 참가
 	void SetPlayerName(int32 Index, const FString& PlayerName);
 	// 특정 플레이어 슬롯 위젯 업데이트
@@ -38,14 +44,14 @@ public:
 	void TurnEnded(bool bIsAuto) const;
 	// 타이머 텍스트 업데이트
 	void UpdateTimerText(const FString& InTimerText) const;
+	// 라운드 텍스트 업데이트
+	void UpdateRoundText(int32 CurrentRound) const;
+	// 턴 텍스트 업데이트
+	void UpdateTurnText(int32 CurrentTurn) const;
 
 	// 도움말 메세지 설정
 	void SetHelpMessage() const;
 	void SetHelpMessage(const FString& InHelpMessage) const;
-	// 위젯 초기화
-	void InitWidget(const TSubclassOf<UPlayerSlotWidget>& PlayerSlotWidgetClass);
-	// 준비 버튼 초기화
-	void InitReadyButton(bool bIsHost);
 	// 준비 버튼 텍스트 설정
 	void SetReadyButtonText(bool bIsReady) const;
 	// 게임 시작 버튼 활성화
@@ -56,6 +62,12 @@ public:
 	                   const FString& InInputText);
 	// 판정 결과 업데이트
 	void UpdateResult(int32 StrikeCount, int32 BallCount) const;
+
+	// 점수 업데이트
+	void UpdateScore(int32 Index, const int32 Score);
+
+	// 채팅 라운드 알림 위젯 추가
+	void AddChatRoundNotifyWidget(const TSubclassOf<UChatRoundNotifyWidget>& ChatRoundNotifyWidgetClass, const int32 CurrentRound, const bool bIsStart);
 
 	// 커밋 델리게이트
 	UPROPERTY()
@@ -78,10 +90,10 @@ private:
 	UTextBlock* HelpMessage;
 	UPROPERTY(meta = (BindWidget))
 	UButton* ReadyButton;
-	// UPROPERTY(meta = (BindWidget))
-	// UTextBlock* RoundText;
-	// UPROPERTY(meta = (BindWidget))
-	// UTextBlock* TurnText;
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* RoundText;
+	UPROPERTY(meta = (BindWidget))
+	UTextBlock* TurnText;
 	UPROPERTY(meta = (BindWidget))
 	UTextBlock* TimerText;
 	UPROPERTY(meta = (BindWidget))
@@ -96,5 +108,8 @@ private:
 	int32 TargetNumberLength = 0;
 
 	UPROPERTY()
-	UChatWidget* LastChatWidget;
+	TObjectPtr<UChatWidget> LastChatWidget;
+
+	UPROPERTY()
+	TObjectPtr<UChatRoundNotifyWidget> LastChatRoundNotifyWidget;
 };

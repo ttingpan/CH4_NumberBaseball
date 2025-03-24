@@ -10,7 +10,7 @@ void ATurnManager::InitTurnManager(const float InTurnDuration, const int32 InMax
 {
 	TurnDuration = InTurnDuration;
 	RemainingTime = TurnDuration;
-	MaxTurnCount = InMaxTurnCount * 2;
+	MaxTurnCount = InMaxTurnCount;
 	CurrentTurnCount = -1;
 }
 

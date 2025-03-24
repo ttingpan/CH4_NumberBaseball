@@ -3,12 +3,18 @@
 #include "Components/Button.h"
 #include "Components/EditableTextBox.h"
 #include "FunctionLibrary/InputValidationLib.h"
+#include "GameFramework/PlayerState.h"
 #include "Player/NumberBaseballPlayerController.h"
 
 void UJoinGameWidget::InitWidget()
 {
 	PlayerNameTextBox->OnTextChanged.AddDynamic(this, &UJoinGameWidget::OnTextChanged);
 	JoinButton->OnClicked.AddDynamic(this, &UJoinGameWidget::OnJoinButtonClicked);
+}
+
+void UJoinGameWidget::SetJoinButtonIsEnabled() const
+{
+	JoinButton->SetIsEnabled(true);
 }
 
 // ReSharper disable once CppMemberFunctionMayBeConst
@@ -29,15 +35,15 @@ void UJoinGameWidget::OnTextChanged(const FText& Text)
 // ReSharper disable once CppMemberFunctionMayBeConst
 void UJoinGameWidget::OnJoinButtonClicked()
 {
-	if (const ANumberBaseballPlayerController* NumberBaseballPlayerController = Cast<ANumberBaseballPlayerController>(
-			GetOwningPlayer()))
+	if (ANumberBaseballPlayerController* NumberBaseballPlayerController
+		= Cast<ANumberBaseballPlayerController>(GetOwningPlayer()))
 	{
-		FString PlayerName = PlayerNameTextBox->GetText().ToString();
-		if (PlayerName.IsEmpty())
+		FString NewPlayerName = PlayerNameTextBox->GetText().ToString();
+		if (NewPlayerName.IsEmpty())
 		{
-			PlayerName = TEXT("Unknown");
+			NewPlayerName = TEXT("Unknown");
 		}
-		
-		NumberBaseballPlayerController->SetPlayerName(PlayerName);
+		NumberBaseballPlayerController->PlayerState->SetPlayerName(NewPlayerName);
+		NumberBaseballPlayerController->Server_JoinGame(NewPlayerName);
 	}
 }

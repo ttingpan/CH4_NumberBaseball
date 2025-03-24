@@ -3,58 +3,76 @@
 #include "NumberBaseballGameState.h"
 
 #include "NumberBaseballGameMode.h"
-#include "GameFramework/PlayerState.h"
 #include "Manager/TurnManager.h"
 #include "Net/UnrealNetwork.h"
-#include "Player/NumberBaseballPlayerController.h"
 #include "Player/NumberBaseballPlayerState.h"
+#include "Player/NumberBaseballPlayerController.h"
 
 void ANumberBaseballGameState::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
 	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-	DOREPLIFETIME(ANumberBaseballGameState, JoinedPlayerIDs);
+	DOREPLIFETIME(ANumberBaseballGameState, JoinedPlayerStates);
+	DOREPLIFETIME(ANumberBaseballGameState, JoinedPlayerControllers);
 	DOREPLIFETIME(ANumberBaseballGameState, CurrentTurnPlayerIndex);
 	DOREPLIFETIME(ANumberBaseballGameState, TurnManager);
 	DOREPLIFETIME(ANumberBaseballGameState, CurrentRound);
 }
 
-void ANumberBaseballGameState::Server_JoinGame_Implementation()
+void ANumberBaseballGameState::JoinGame(ANumberBaseballPlayerState* JoinPlayerState, const FString& NewPlayerName)
 {
-	const int32 PlayerIndex = JoinedPlayerIDs.Num();
-	
-	if (ANumberBaseballPlayerController* NumberBaseballPlayerController = GetPlayerControllerByIndex(PlayerIndex))
+	if (JoinPlayerState && !JoinedPlayerStates.Contains(JoinPlayerState))
 	{
-		const FUniqueNetIdRepl PlayerID = NumberBaseballPlayerController->PlayerState->GetUniqueId();
-		if (!JoinedPlayerIDs.Contains(PlayerID))
+		if (JoinedPlayerStates.Num() == 4)
 		{
-			// 플레이어 아이디 추가
-			JoinedPlayerIDs.Add(PlayerID);
-			
-			JoinOtherPlayer();
+			UE_LOG(LogTemp, Error, TEXT("더 이상 참가할 수 없습니다."));
+			return;
 		}
-	}
-}
 
-bool ANumberBaseballGameState::Server_JoinGame_Validate()
-{
-	if (JoinedPlayerIDs.Num() == 2)
-	{
-		UE_LOG(LogTemp, Error, TEXT("더 이상 참가할 수 없습니다."));
-		return false;
-	}
-	
-	return true;
-}
+		JoinPlayerState->SetPlayerName(NewPlayerName);
 
-// ReSharper disable once CppMemberFunctionMayBeConst
-void ANumberBaseballGameState::JoinOtherPlayer()
-{
-	if (APlayerController* PlayerController = GetWorld()->GetFirstPlayerController())
-	{
+		UE_LOG(LogTemp, Warning, TEXT("NewPlayer Name : %s"), *NewPlayerName);
+
+		JoinedPlayerStates.Add(JoinPlayerState);
+		JoinedPlayerControllers.Add(JoinPlayerState->GetNumberBaseballPlayerController());
+
 		if (ANumberBaseballPlayerController* NumberBaseballPlayerController
-			= Cast<ANumberBaseballPlayerController>(PlayerController))
+			= JoinPlayerState->GetNumberBaseballPlayerController())
 		{
-			NumberBaseballPlayerController->Client_JoinGame(JoinedPlayerIDs.Num() - 1);
+			NumberBaseballPlayerController->Client_JoinGame(JoinedPlayerStates.Num() == 1);
+		}
+
+		if (ANumberBaseballGameMode* NumberBaseballGameMode
+			= Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode()))
+		{
+			NumberBaseballGameMode->SetRequiredReadyCount(JoinedPlayerStates.Num());
+		}
+
+		UpdateOtherPlayer();
+	}
+}
+
+void ANumberBaseballGameState::UpdateOtherPlayer()
+{
+	for (const ANumberBaseballPlayerController* NumberBaseballPlayerController : JoinedPlayerControllers)
+	{
+		if (NumberBaseballPlayerController)
+		{
+			int32 Index = 1;
+			for (const ANumberBaseballPlayerState* NumberBaseballPlayerState : JoinedPlayerStates)
+			{
+				if (NumberBaseballPlayerState)
+				{
+					int32 TargetIndex = 0;
+					if (NumberBaseballPlayerState != NumberBaseballPlayerController->PlayerState)
+					{
+						TargetIndex = Index++;
+					}
+
+					NumberBaseballPlayerController->Client_UpdateOtherPlayerName(
+						TargetIndex,
+						NumberBaseballPlayerState->GetPlayerName());
+				}
+			}
 		}
 	}
 }
@@ -72,34 +90,32 @@ void ANumberBaseballGameState::BindTurnManagerEvent()
 
 void ANumberBaseballGameState::OnTurnStarted()
 {
-	for (const APlayerState* PlayerState : PlayerArray)
+	// 이전 플레이어 종료
+	if (BeforeTurnPlayerController)
 	{
-		if (PlayerState)
-		{
-			if (ANumberBaseballPlayerController* NumberBaseballPlayerController
-				= Cast<ANumberBaseballPlayerController>(PlayerState->GetPlayerController()))
-			{
-				// 현재 플레이어 턴 시작
-				if (PlayerState->GetUniqueId() == JoinedPlayerIDs[CurrentTurnPlayerIndex])
-				{
-					NumberBaseballPlayerController->Client_OnTurnStarted();
-				}
-				// 이전 플레이어 턴 종료
-				else
-				{
-					NumberBaseballPlayerController->Client_OnTurnEnded(true);
-				}
-			}
-		}
+		BeforeTurnPlayerController->Client_OnTurnEnded(true);
+	}
+
+	// 현재 플레이어 시작
+	if (JoinedPlayerControllers[CurrentTurnPlayerIndex])
+	{
+		UpdateTurnText();
+		JoinedPlayerControllers[CurrentTurnPlayerIndex]->Client_OnTurnStarted();
+		BeforeTurnPlayerController = JoinedPlayerControllers[CurrentTurnPlayerIndex];
+	}
+
+	for (const ANumberBaseballPlayerController* NumberBaseballPlayerController : JoinedPlayerControllers)
+	{
+		NumberBaseballPlayerController->Client_UpdatePlayerSlotWidget();
 	}
 }
 
-// ReSharper disable once CppMemberFunctionMayBeConst
 void ANumberBaseballGameState::OnTurnUpdated(const float RemainingTime)
 {
 	for (int32 i = 0; i < PlayerArray.Num(); i++)
 	{
-		if (ANumberBaseballPlayerController* NumberBaseballPlayerController = GetPlayerControllerByIndex(i))
+		if (ANumberBaseballPlayerController* NumberBaseballPlayerController
+			= JoinedPlayerStates[i]->GetNumberBaseballPlayerController())
 		{
 			NumberBaseballPlayerController->Client_OnTurnUpdated(RemainingTime);
 		}
@@ -117,42 +133,30 @@ void ANumberBaseballGameState::OnTurnEnded()
 		return;
 	}
 
-	Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode())->TurnTimeOver(CurrentTurnPlayerIndex);
+	Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode())->TurnTimeOver(
+		JoinedPlayerStates[CurrentTurnPlayerIndex]);
 
 	// 현재 턴 플레이어 턴 종료
-	GetPlayerControllerByIndex(CurrentTurnPlayerIndex)->Client_OnTurnEnded(true);
+	if (ANumberBaseballPlayerController* NumberBaseballPlayerController
+		= JoinedPlayerStates[CurrentTurnPlayerIndex]->GetNumberBaseballPlayerController())
+	{
+		NumberBaseballPlayerController->Client_OnTurnEnded(true);
+	}
 
 	// 다음 턴 플레이어 설정
 	CurrentTurnPlayerIndex++;
-	CurrentTurnPlayerIndex %= 2;
+	CurrentTurnPlayerIndex %= JoinedPlayerStates.Num();
 
 	// 현재 최대 턴일 경우
 	if (TurnManager->IsMaxTurn())
 	{
-		// 라운드 종료
-		CurrentRound++;
-		// 현재 최대 라운드일 경우
-		if (CurrentRound == Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode())->GetMaxGameRound())
-		{
-			// TODO: 최종 게임 종료후 승/패 확인
-		}
-		else
-		{
-			// 3초 후 다음 라운드 시작
-			FTimerHandle TimerHandle;
-			GetWorldTimerManager().SetTimer(
-				TimerHandle,
-				this,
-				&ANumberBaseballGameState::StartNextRound,
-				3.0f,
-				false
-			);
-		}
+		PrepareStartNextRound();
 	}
 	// 최대 턴이 아닐 경우
 	else
 	{
-		ANumberBaseballPlayerController* PlayerController = GetPlayerControllerByIndex(CurrentTurnPlayerIndex);
+		ANumberBaseballPlayerController* PlayerController
+			= JoinedPlayerStates[CurrentTurnPlayerIndex]->GetNumberBaseballPlayerController();
 
 		FTimerHandle TimerHandle;
 		FTimerDelegate TimerDelegate;
@@ -172,69 +176,136 @@ void ANumberBaseballGameState::OnTurnEnded()
 void ANumberBaseballGameState::OnTurnEndedImmediately()
 {
 	// 현재 턴 플레이어 턴 종료
-	GetPlayerControllerByIndex(CurrentTurnPlayerIndex)->Client_OnTurnEnded(false);
+	if (ANumberBaseballPlayerController* NumberBaseballPlayerController
+		= JoinedPlayerStates[CurrentTurnPlayerIndex]->GetNumberBaseballPlayerController())
+	{
+		NumberBaseballPlayerController->Client_OnTurnEnded(false);
+	}
 
 	// 다음 턴 플레이어 설정
 	CurrentTurnPlayerIndex++;
-	CurrentTurnPlayerIndex %= 2;
+	CurrentTurnPlayerIndex %= JoinedPlayerStates.Num();
 
-	GetPlayerControllerByIndex(CurrentTurnPlayerIndex)->Client_OnTurnEnded(false);
+	if (ANumberBaseballPlayerController* NumberBaseballPlayerController
+		= JoinedPlayerStates[CurrentTurnPlayerIndex]->GetNumberBaseballPlayerController())
+	{
+		NumberBaseballPlayerController->Client_OnTurnEnded(false);
+	}
 
 	// 타이머 텍스트 초기화
 	for (int32 i = 0; i < PlayerArray.Num(); i++)
 	{
-		if (ANumberBaseballPlayerController* NumberBaseballPlayerController = GetPlayerControllerByIndex(i))
+		if (ANumberBaseballPlayerController* NumberBaseballPlayerController = JoinedPlayerControllers[i])
 		{
 			NumberBaseballPlayerController->Client_OnTurnUpdated(TurnManager->GetTurnDuration());
 		}
 	}
 }
 
-void ANumberBaseballGameState::StartNextRound() const
+void ANumberBaseballGameState::PrepareStartGame(const int32 TargetNumberLength)
 {
+	for (ANumberBaseballPlayerController* NumberBaseballPlayerController : JoinedPlayerControllers)
+	{
+		if (NumberBaseballPlayerController)
+		{
+			NumberBaseballPlayerController->Client_PrepareGameStart(TargetNumberLength);
+			NumberBaseballPlayerController->Client_AddChatRoundNotifyWidget(CurrentRound, true);
+		}
+	}
+
 	TurnManager->PrepareTurnStart();
 }
 
-int32 ANumberBaseballGameState::GetIndexByPlayerID(const FUniqueNetIdRepl& PlayerID) const
+void ANumberBaseballGameState::PrepareStartNextRound()
 {
-	return JoinedPlayerIDs.Find(PlayerID);
-}
-
-ANumberBaseballPlayerController* ANumberBaseballGameState::GetPlayerControllerByUniqueID(
-	const FUniqueNetIdRepl& PlayerID) const
-{
-	for (const APlayerState* PlayerState : PlayerArray)
+	// 현재 최대 라운드일 경우
+	if (const ANumberBaseballGameMode* NumberBaseballGameMode = Cast<ANumberBaseballGameMode>(
+		GetWorld()->GetAuthGameMode()))
 	{
-		if (PlayerState->GetUniqueId() == PlayerID)
+		if (CurrentRound == NumberBaseballGameMode->GetMaxGameRound())
 		{
-			return Cast<ANumberBaseballPlayerController>(PlayerState->GetPlayerController());
-		}
-	}
-	
-	return nullptr;
-}
-
-ANumberBaseballPlayerController* ANumberBaseballGameState::GetPlayerControllerByIndex(const int32 Index) const
-{
-	if (Index >= PlayerArray.Num())
-	{
-		return nullptr;
-	}
-
-	if (const ANumberBaseballPlayerState* NumberBaseballPlayerState
-		= Cast<ANumberBaseballPlayerState>(PlayerArray[Index]))
-	{
-		if (ANumberBaseballPlayerController* NumberBaseballPlayerController
-			= NumberBaseballPlayerState->GetNumberBaseballPlayerController())
-		{
-			return NumberBaseballPlayerController;
+			// TODO 최종 게임 종료후 승/패 확인
+			UE_LOG(LogTemp, Warning, TEXT("GameOver!"));
+			return;
 		}
 	}
 
-	return nullptr;
+	// 3초 후 다음 라운드 시작
+	FTimerHandle TimerHandle;
+	GetWorldTimerManager().SetTimer(
+		TimerHandle,
+		this,
+		&ANumberBaseballGameState::StartNextRound,
+		3.0f,
+		false
+	);
 }
 
-void ANumberBaseballGameState::OnRep_JoinedPlayerIDs()
+void ANumberBaseballGameState::StartNextRound()
 {
-	JoinOtherPlayer();
+	// for (ANumberBaseballPlayerController* NumberBaseballPlayerController : JoinedPlayerControllers)
+	// {
+	// 	if (NumberBaseballPlayerController)
+	// 	{
+	// 		NumberBaseballPlayerController->Client_AddChatRoundNotifyWidget(CurrentRound, false);
+	// 	}
+	// }
+
+	// 라운드 갱신
+	CurrentRound++;
+
+	CurrentTurnPlayerIndex = 0;
+	TurnManager->SetCurrentTurnCount(0);
+	UpdateRoundText();
+
+	Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode())->StartGame();
+}
+
+void ANumberBaseballGameState::AddPlayerScore(ANumberBaseballPlayerState* WinnerPlayerState)
+{
+	const int32 NewScore = WinnerPlayerState->GetScore() + 1;
+	WinnerPlayerState->SetScore(NewScore);
+
+	for (ANumberBaseballPlayerController* NumberBaseballPlayerController : JoinedPlayerControllers)
+	{
+		if (NumberBaseballPlayerController
+			&& NumberBaseballPlayerController == WinnerPlayerState->GetPlayerController())
+		{
+			NumberBaseballPlayerController->Client_UpdateScore(WinnerPlayerState, NewScore);
+		}
+	}
+}
+
+void ANumberBaseballGameState::UpdateHostGameStartButtonIsEnabled()
+{
+	for (int32 i = 1; i < JoinedPlayerStates.Num(); i++)
+	{
+		// 참가한 인원 중 한명이라도 준비 안했으면 게임시작 불가
+		if (!JoinedPlayerStates[i]->IsReady())
+		{
+			JoinedPlayerControllers[0]->Client_SetReadyButtonIsEnabled(false);
+			return;
+		}
+	}
+
+	// 모두 준비 했다면 게임시작 버튼 활성화
+	JoinedPlayerControllers[0]->Client_SetReadyButtonIsEnabled(true);
+}
+
+void ANumberBaseballGameState::UpdateRoundText()
+{
+	for (ANumberBaseballPlayerController* NumberBaseballPlayerController : JoinedPlayerControllers)
+	{
+		NumberBaseballPlayerController->Client_UpdateRoundText(CurrentRound);
+	}
+
+	UpdateTurnText();
+}
+
+void ANumberBaseballGameState::UpdateTurnText()
+{
+	for (ANumberBaseballPlayerController* NumberBaseballPlayerController : JoinedPlayerControllers)
+	{
+		NumberBaseballPlayerController->Client_UpdateTurnText(TurnManager->GetCurrentTurnCount());
+	}
 }

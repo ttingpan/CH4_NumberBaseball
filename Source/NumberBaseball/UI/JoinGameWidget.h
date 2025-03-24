@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+
 #include "JoinGameWidget.generated.h"
 
 UCLASS(Abstract)
@@ -12,6 +13,9 @@ class NUMBERBASEBALL_API UJoinGameWidget : public UUserWidget
 public:
 	// 위젯 초기화
 	void InitWidget();
+
+	// 참가 버튼 활성화
+	void SetJoinButtonIsEnabled() const;
 
 private:
 	UFUNCTION()
@@ -25,7 +29,7 @@ private:
 	// 게임 참가 버튼
 	UPROPERTY(meta = (BindWidget))
 	class UButton* JoinButton;
-
+	
 	// 이름 최대 길이
 	UPROPERTY(EditDefaultsOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
 	int32 NameMaxLength;

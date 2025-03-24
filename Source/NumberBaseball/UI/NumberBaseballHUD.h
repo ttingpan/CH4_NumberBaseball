@@ -4,8 +4,6 @@
 #include "GameFramework/HUD.h"
 #include "NumberBaseballHUD.generated.h"
 
-class UPlayerSlotWidget;
-class UChatWidget;
 class UJoinGameWidget;
 class UMainWidget;
 
@@ -20,6 +18,8 @@ public:
 	void JoinGame() const;
 
 	void AddChatWidget(const FString& PlayerName, const FString& InputText) const;
+
+	void AddChatRoundNotifyWidget(const int32 CurrentRound, const bool bIsStart) const;
 
 private:
 	// 참가 위젯
@@ -36,9 +36,13 @@ private:
 
 	// 채팅 위젯
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
-	TSubclassOf<UChatWidget> ChatWidgetClass;
+	TSubclassOf<class UChatWidget> ChatWidgetClass;
 
 	// 플레이어 슬롯 위젯
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
-	TSubclassOf<UPlayerSlotWidget> PlayerSlotWidgetClass;
+	TSubclassOf<class UPlayerSlotWidget> PlayerSlotWidgetClass;
+
+	// 채팅 라운드 알림 위젯
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<class UChatRoundNotifyWidget> ChatRoundNotifyWidgetClass;
 };

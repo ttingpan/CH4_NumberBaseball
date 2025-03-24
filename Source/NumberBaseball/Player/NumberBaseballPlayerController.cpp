@@ -1,6 +1,4 @@
-﻿PRAGMA_DISABLE_OPTIMIZATION
-
-#include "NumberBaseballPlayerController.h"
+﻿#include "NumberBaseballPlayerController.h"
 
 #include "NumberBaseballPlayerState.h"
 #include "GameFramework/GameUserSettings.h"
@@ -8,6 +6,7 @@
 #include "NumberBaseball/GameModes/NumberBaseballGameMode.h"
 #include "UI/MainWidget.h"
 #include "UI/NumberBaseballHUD.h"
+#include "UI/JoinGameWidget.h"
 
 void ANumberBaseballPlayerController::BeginPlay()
 {
@@ -31,60 +30,65 @@ void ANumberBaseballPlayerController::ChangeGameResolution()
 		Settings->SetScreenResolution({1280, 720});
 		Settings->SetFullscreenMode(EWindowMode::Windowed);
 
-		// 변경 사항 적용 (false: 즉시 적용하지 않으면 false, true: 재시작 전까지 적용)
+		// 변경 사항 적용
 		Settings->ApplySettings(false);
 	}
 }
 
-void ANumberBaseballPlayerController::SetPlayerName(const FString& NewPlayerName) const
-{
-	// 클라이언트 player state에 이름 설정
-	PlayerState->SetPlayerName(NewPlayerName);
-	if (ANumberBaseballGameState* NumberBaseballGameState = Cast<ANumberBaseballGameState>(GetWorld()->GetGameState()))
-	{
-		NumberBaseballGameState->Server_JoinGame();
-	}
-}
-
-void ANumberBaseballPlayerController::Server_SetPlayerName_Implementation(const FString& NewPlayerName)
-{
-	if (ANumberBaseballPlayerState* NumberBaseballPlayerState = Cast<ANumberBaseballPlayerState>(PlayerState))
-	{
-		// 서버 player state에 이름 설정
-		NumberBaseballPlayerState->SetPlayerName(NewPlayerName);
-	}
-}
-
-bool ANumberBaseballPlayerController::Server_SetPlayerName_Validate(const FString& NewPlayerName)
-{
-	return true;
-}
-
-void ANumberBaseballPlayerController::Client_UpdatePlayerSlotWidget_Implementation()
+void ANumberBaseballPlayerController::Client_UpdatePlayerSlotWidget_Implementation() const
 {
 	if (MainWidget)
 	{
-		if (ANumberBaseballGameState* NumberBaseballGameState
+		if (const ANumberBaseballGameState* NumberBaseballGameState
 			= Cast<ANumberBaseballGameState>(GetWorld()->GetGameState()))
 		{
-			TArray<FUniqueNetIdRepl> JoinedPlayerIDs;
-			NumberBaseballGameState->GetJoinedPlayerIDs(JoinedPlayerIDs);
-			for (int i = 0; i < JoinedPlayerIDs.Num(); i++)
+			int32 Index = 1;
+			for (ANumberBaseballPlayerState* NumberBaseballPlayerState : NumberBaseballGameState->
+			     GetJoinedPlayerStates())
 			{
-				if (JoinedPlayerIDs[i] != PlayerState->GetUniqueId())
+				if (NumberBaseballPlayerState && NumberBaseballGameState->GetCurrentTurnPlayerState())
 				{
-					if (const ANumberBaseballPlayerController* NumberBaseballPlayerController
-						= NumberBaseballGameState->GetPlayerControllerByUniqueID(JoinedPlayerIDs[i]))
+					int32 TargetIndex = 0;
+					if (NumberBaseballPlayerState != PlayerState)
 					{
-						MainWidget->SetPlayerName(i, NumberBaseballPlayerController->PlayerState->GetPlayerName());
+						TargetIndex = Index++;
 					}
+
+					const bool bIsMyTurn = NumberBaseballPlayerState == NumberBaseballGameState->
+						GetCurrentTurnPlayerState();
+					MainWidget->UpdatePlayerSlotWidgetByIndex(TargetIndex, bIsMyTurn);
 				}
 			}
 		}
 	}
 }
 
-void ANumberBaseballPlayerController::Client_JoinGame_Implementation(const int32 PlayerIndex)
+void ANumberBaseballPlayerController::Client_UpdateOtherPlayerName_Implementation(
+	const int32 Index, const FString& OtherPlayerName) const
+{
+	if (MainWidget)
+	{
+		MainWidget->SetPlayerName(Index, OtherPlayerName);
+	}
+}
+
+void ANumberBaseballPlayerController::Server_JoinGame_Implementation(const FString& NewPlayerName)
+{
+	if (ANumberBaseballGameState* NumberBaseballGameState = Cast<ANumberBaseballGameState>(GetWorld()->GetGameState()))
+	{
+		if (ANumberBaseballPlayerState* NumberBaseballPlayerState = Cast<ANumberBaseballPlayerState>(PlayerState))
+		{
+			NumberBaseballGameState->JoinGame(NumberBaseballPlayerState, NewPlayerName);
+		}
+	}
+}
+
+bool ANumberBaseballPlayerController::Server_JoinGame_Validate(const FString& NewPlayerName)
+{
+	return true;
+}
+
+void ANumberBaseballPlayerController::Client_JoinGame_Implementation(const bool bIsHost)
 {
 	if (GetHUD())
 	{
@@ -94,8 +98,10 @@ void ANumberBaseballPlayerController::Client_JoinGame_Implementation(const int32
 
 			if (MainWidget)
 			{
-				MainWidget->InitReadyButton(PlayerIndex == 0);
-				Client_UpdatePlayerSlotWidget_Implementation();
+				MainWidget->InitReadyButton(bIsHost);
+
+				// 자기 자신 이름 설정
+				MainWidget->SetPlayerName(0, PlayerState->GetPlayerName());
 			}
 		}
 	}
@@ -141,25 +147,78 @@ void ANumberBaseballPlayerController::Client_SetReadyButtonIsEnabled_Implementat
 	}
 }
 
-void ANumberBaseballPlayerController::Client_AddChatWidget_Implementation(const int32 JoinedIndex,
-                                                                          const FString& InputText)
-{
-	if (GetHUD())
-	{
-		if (const ANumberBaseballHUD* NumberBaseballHUD = Cast<ANumberBaseballHUD>(GetHUD()))
-		{
-			// const FString PlayerName
-			// 	= Cast<ANumberBaseballGameState>(GetWorld()->GetGameState())->GetPlayerNameByID(PlayerID);
-			// NumberBaseballHUD->AddChatWidget(PlayerName, InputText);
-		}
-	}
-}
-
 void ANumberBaseballPlayerController::Client_UpdateResult_Implementation(const int32 StrikeCount, const int32 BallCount)
 {
 	if (MainWidget)
 	{
 		MainWidget->UpdateResult(StrikeCount, BallCount);
+	}
+}
+
+void ANumberBaseballPlayerController::Client_AddChatWidget_Implementation(
+	const ANumberBaseballPlayerState* ChatOwnerPlayerState, const FString& InputText)
+{
+	if (GetHUD())
+	{
+		if (const ANumberBaseballHUD* NumberBaseballHUD = Cast<ANumberBaseballHUD>(GetHUD()))
+		{
+			NumberBaseballHUD->AddChatWidget(ChatOwnerPlayerState->GetPlayerName(), InputText);
+		}
+	}
+}
+
+void ANumberBaseballPlayerController::Client_UpdateRoundText_Implementation(const int32 CurrentRound)
+{
+	if (MainWidget)
+	{
+		MainWidget->UpdateRoundText(CurrentRound);
+	}
+}
+
+void ANumberBaseballPlayerController::Client_UpdateTurnText_Implementation(const int32 CurrentTurn)
+{
+	if (MainWidget)
+	{
+		MainWidget->UpdateTurnText(CurrentTurn);
+	}
+}
+
+void ANumberBaseballPlayerController::Client_AddChatRoundNotifyWidget_Implementation(const int32 CurrentRound,
+	const bool bIsStart)
+{
+	if (GetHUD())
+	{
+		if (const ANumberBaseballHUD* NumberBaseballHUD = Cast<ANumberBaseballHUD>(GetHUD()))
+		{
+			NumberBaseballHUD->AddChatRoundNotifyWidget(CurrentRound, bIsStart);
+		}
+	}
+}
+
+void ANumberBaseballPlayerController::Client_UpdateScore_Implementation(ANumberBaseballPlayerState* WinnerPlayerState,
+                                                                        const int32 Score)
+{
+	if (MainWidget)
+	{
+		if (const ANumberBaseballGameState* NumberBaseballGameState
+			= Cast<ANumberBaseballGameState>(GetWorld()->GetGameState()))
+		{
+			int32 Index = 1;
+			for (const ANumberBaseballPlayerState* NumberBaseballPlayerState
+			     : NumberBaseballGameState->GetJoinedPlayerStates())
+			{
+				if (NumberBaseballPlayerState && NumberBaseballPlayerState != PlayerState)
+				{
+					if (NumberBaseballPlayerState == WinnerPlayerState)
+					{
+						MainWidget->UpdateScore(Index, Score);
+						break;
+					}
+
+					Index++;
+				}
+			}
+		}
 	}
 }
 
@@ -174,18 +233,12 @@ void ANumberBaseballPlayerController::SetMainWidget(UMainWidget* InMainWidget)
 	}
 }
 
-void ANumberBaseballPlayerController::Server_JoinGame_Implementation()
+void ANumberBaseballPlayerController::SetJoinButtonIsEnabled() const
 {
-	if (ANumberBaseballGameState* NumberBaseballGameState = Cast<ANumberBaseballGameState>(GetWorld()->GetGameState()))
+	if (JoinGameWidget)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Index TEST : %d"), GetWorld()->GetNumPlayerControllers() - 1);
-		// NumberBaseballGameState->JoinGame(GetWorld()->GetNumPlayerControllers() - 1);
+		JoinGameWidget->SetJoinButtonIsEnabled();
 	}
-}
-
-bool ANumberBaseballPlayerController::Server_JoinGame_Validate()
-{
-	return true;
 }
 
 void ANumberBaseballPlayerController::Client_PrepareGameStart_Implementation(const int32& TargetNumberLength)
@@ -213,9 +266,9 @@ void ANumberBaseballPlayerController::Server_SetInputText_Implementation(const F
 {
 	if (ANumberBaseballGameMode* GameMode = Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode()))
 	{
-		if (const ANumberBaseballPlayerState* NumberBaseballPlayerState = GetPlayerState<ANumberBaseballPlayerState>())
+		if (ANumberBaseballPlayerState* NumberBaseballPlayerState = GetPlayerState<ANumberBaseballPlayerState>())
 		{
-			// GameMode->GotInputText(NumberBaseballPlayerState->GetReplicatedPlayerID(), InputText);
+			GameMode->GotInputText(NumberBaseballPlayerState, InputText);
 		}
 	}
 }

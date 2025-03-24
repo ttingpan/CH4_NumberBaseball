@@ -3,11 +3,6 @@
 #include "GameModes/NumberBaseballGameMode.h"
 #include "GameModes/NumberBaseballGameState.h"
 
-void ANumberBaseballPlayerState::OnRep_PlayerName()
-{
-	Super::OnRep_PlayerName();
-}
-
 void ANumberBaseballPlayerState::GameReady() 
 {
 	if (ANumberBaseballGameMode* NumberBaseballGameMode = Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode()))
@@ -18,26 +13,13 @@ void ANumberBaseballPlayerState::GameReady()
 		// 준비 버튼 텍스트 변경
 		Cast<ANumberBaseballPlayerController>(GetPlayerController())->Client_SetReadyButtonText(bIsReady);
 
-		// Host(방장) 버튼 설정
-		const ANumberBaseballGameState* NumberBaseballGameState
-			= NumberBaseballGameMode->GetGameState<ANumberBaseballGameState>();
-
-		if (NumberBaseballGameState->GetIndexByPlayerID(GetUniqueId()) != 0)
+		// 방장 게임시작 버튼 사용가능 설정 업데이트
+		if (ANumberBaseballGameState* NumberBaseballGameState
+			= Cast<ANumberBaseballGameState>(GetWorld()->GetGameState()))
 		{
-			NumberBaseballGameState->GetPlayerControllerByIndex(0)->Client_SetReadyButtonIsEnabled(bIsReady);
+			NumberBaseballGameState->UpdateHostGameStartButtonIsEnabled();
 		}
 	}
-}
-
-void ANumberBaseballPlayerState::Server_SetPlayerName_Implementation(const FString& NewPlayerName)
-{
-	SetPlayerName(NewPlayerName);
-	OnRep_PlayerName();
-}
-
-bool ANumberBaseballPlayerState::Server_SetPlayerName_Validate(const FString& NewPlayerName)
-{
-	return true;
 }
 
 ANumberBaseballPlayerController* ANumberBaseballPlayerState::GetNumberBaseballPlayerController() const

@@ -5,6 +5,8 @@
 
 #include "NumberBaseballPlayerController.generated.h"
 
+class ANumberBaseballPlayerState;
+class UJoinGameWidget;
 class ATurnManager;
 class UMainWidget;
 
@@ -18,7 +20,7 @@ public:
 
 	// 화면 크기 설정
 	static void ChangeGameResolution();
-	
+
 	// 턴 시작
 	UFUNCTION(Client, Reliable)
 	void Client_OnTurnStarted();
@@ -28,20 +30,19 @@ public:
 	// 턴 종료
 	UFUNCTION(Client, Reliable)
 	void Client_OnTurnEnded(bool bIsAuto);
-
-	// 플레이어 이름 등록
-	void SetPlayerName(const FString& NewPlayerName) const;
-	UFUNCTION(server, Reliable, WithValidation)
-	void Server_SetPlayerName(const FString& NewPlayerName);
+	// 플레이어 위젯 업데이트
+	UFUNCTION(Client, Reliable)
+	void Client_UpdatePlayerSlotWidget() const;
+	
 	// 게임 참가 시도
 	UFUNCTION(Server, Reliable, WithValidation)
-	void Server_JoinGame();
+	void Server_JoinGame(const FString& NewPlayerName);
 	// 게임 참가
 	UFUNCTION(Client, Reliable)
-	void Client_JoinGame(int32 PlayerIndex);
-	// 다른 플레이어 참가
+	void Client_JoinGame(bool bIsHost);
+	// 다른 플레이어 위젯 업데이트
 	UFUNCTION(Client, Reliable)
-	void Client_UpdatePlayerSlotWidget();
+	void Client_UpdateOtherPlayerName(int32 Index, const FString& OtherPlayerName) const;
 	// 준비 버튼 클릭
 	UFUNCTION(Server, Reliable, WithValidation)
 	void Server_ReadyButtonClicked();
@@ -51,7 +52,7 @@ public:
 	// 게임 시작 버튼 활성화
 	UFUNCTION(Client, Reliable)
 	void Client_SetReadyButtonIsEnabled(bool bIsReady);
-	
+
 	// 게임 시작
 	UFUNCTION(Client, Reliable)
 	void Client_PrepareGameStart(const int32& TargetNumberLength);
@@ -61,15 +62,41 @@ public:
 
 	// 채팅 위젯 추가
 	UFUNCTION(Client, Reliable)
-	void Client_AddChatWidget(int32 JoinedIndex, const FString& InputText);
+	void Client_AddChatWidget(const ANumberBaseballPlayerState* ChatOwnerPlayerState, const FString& InputText);
 	// 판정 결과 갱신
 	UFUNCTION(Client, Reliable)
 	void Client_UpdateResult(int32 StrikeCount, int32 BallCount);
 
-	// 위젯 설정
+	// 점수 갱신
+	UFUNCTION(Client, Reliable)
+	void Client_UpdateScore(ANumberBaseballPlayerState* WinnerPlayerState, int32 Score);
+
+	// 채팅 라운드 알림 위젯 추가
+	UFUNCTION(Client, Reliable)
+	void Client_AddChatRoundNotifyWidget(const int32 CurrentRound, bool bIsStart);
+	// 라운드 텍스트 업데이트
+	UFUNCTION(Client, Reliable)
+	void Client_UpdateRoundText(const int32 CurrentRound);
+	// 턴 텍스트 업데이트
+	UFUNCTION(Client, Reliable)
+	void Client_UpdateTurnText(const int32 CurrentTurn);
+
+	// 메인 위젯 설정
 	void SetMainWidget(UMainWidget* InMainWidget);
 
+	// 게임 참가 버튼 활성화
+	void SetJoinButtonIsEnabled() const;
+
+	// 게임 참가 위젯 설정
+	FORCEINLINE void SetJoinGameWidget(UJoinGameWidget* InJoinGameWidget)
+	{
+		JoinGameWidget = InJoinGameWidget;
+	}
+
 private:
+	UPROPERTY()
+	TObjectPtr<UJoinGameWidget> JoinGameWidget;
+
 	UPROPERTY()
 	TObjectPtr<UMainWidget> MainWidget;
 };
