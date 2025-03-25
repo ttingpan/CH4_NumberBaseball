@@ -23,7 +23,7 @@ void ANumberBaseballGameState::JoinGame(ANumberBaseballPlayerState* JoinPlayerSt
 		UE_LOG(LogTemp, Error, TEXT("게임이 이미 진행 중 입니다."));
 		return;
 	}
-	
+
 	if (JoinPlayerState && !JoinedPlayerStates.Contains(JoinPlayerState))
 	{
 		if (JoinedPlayerStates.Num() == 4)
@@ -115,7 +115,7 @@ void ANumberBaseballGameState::OnTurnStarted()
 
 void ANumberBaseballGameState::OnTurnUpdated(const float RemainingTime)
 {
-	for (int32 i = 0; i < PlayerArray.Num(); i++)
+	for (int32 i = 0; i < JoinedPlayerStates.Num(); i++)
 	{
 		if (ANumberBaseballPlayerController* NumberBaseballPlayerController
 			= JoinedPlayerStates[i]->GetNumberBaseballPlayerController())
@@ -202,9 +202,9 @@ void ANumberBaseballGameState::OnTurnEndedImmediately()
 	}
 
 	// 타이머 텍스트 초기화
-	for (int32 i = 0; i < PlayerArray.Num(); i++)
+	for (ANumberBaseballPlayerController* NumberBaseballPlayerController : JoinedPlayerControllers)
 	{
-		if (ANumberBaseballPlayerController* NumberBaseballPlayerController = JoinedPlayerControllers[i])
+		if (NumberBaseballPlayerController)
 		{
 			NumberBaseballPlayerController->Client_OnTurnUpdated(TurnManager->GetTurnDuration());
 		}
@@ -214,7 +214,7 @@ void ANumberBaseballGameState::OnTurnEndedImmediately()
 void ANumberBaseballGameState::PrepareStartGame(const int32 TargetNumberLength)
 {
 	GameStarted = true;
-	
+
 	for (ANumberBaseballPlayerController* NumberBaseballPlayerController : JoinedPlayerControllers)
 	{
 		if (NumberBaseballPlayerController)
@@ -278,7 +278,8 @@ void ANumberBaseballGameState::UpdateVisibilityReadyTextBorder() const
 			{
 				if (NumberBaseballPlayerController && NumberBaseballPlayerController != JoinedPlayerControllers[i])
 				{
-					NumberBaseballPlayerController->Client_SetVisibilityReadyTextBorder(i, JoinedPlayerStates[i]->IsReady());
+					NumberBaseballPlayerController->Client_SetVisibilityReadyTextBorder(
+						i, JoinedPlayerStates[i]->IsReady());
 				}
 			}
 		}
@@ -349,7 +350,7 @@ void ANumberBaseballGameState::UpdateHostGameStartButtonIsEnabled()
 		JoinedPlayerControllers[0]->Client_SetReadyButtonIsEnabled(false);
 		return;
 	}
-	
+
 	for (int32 i = 1; i < JoinedPlayerStates.Num(); i++)
 	{
 		// 참가한 인원 중 한명이라도 준비 안했으면 게임시작 불가
