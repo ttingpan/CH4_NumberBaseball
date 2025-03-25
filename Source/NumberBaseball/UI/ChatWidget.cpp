@@ -3,8 +3,16 @@
 #include "Components/Border.h"
 #include "Components/TextBlock.h"
 
-void UChatWidget::InitWidget(const FString& InPlayerName, const FString& InInputText) const
+void UChatWidget::InitWidget(const bool bIsMyChat, const FString& InPlayerName, const FString& InInputText) const
 {
+	if (bIsMyChat)
+	{
+		if (UBorder* Border = Cast<UBorder>(PlayerName->GetParent()))
+		{
+			Border->SetBrushColor(FColor::Green);
+		}
+	}
+	
 	PlayerName->SetText(FText::FromString(InPlayerName));
 	InputText->SetText(FText::FromString(InInputText));
 	StrikeText->SetText(FText::FromString(TEXT("")));

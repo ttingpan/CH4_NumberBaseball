@@ -13,7 +13,7 @@
 #include "FunctionLibrary/InputValidationLib.h"
 #include "Player/NumberBaseballPlayerController.h"
 
-void UMainWidget::InitWidget(const TSubclassOf<UPlayerSlotWidget>& PlayerSlotWidgetClass)
+void UMainWidget::InitWidget(const TSubclassOf<UPlayerSlotWidget>& PlayerSlotWidgetClass, const int32 Index, const int32 WinScore)
 {
 	// 커밋 이벤트 바인딩
 	InputTextBox->OnTextCommitted.AddDynamic(this, &UMainWidget::OnTextCommitted);
@@ -27,12 +27,11 @@ void UMainWidget::InitWidget(const TSubclassOf<UPlayerSlotWidget>& PlayerSlotWid
 	RoundText->SetText(FText::FromString("Round 1"));
 	TurnText->SetText(FText::FromString("Turn 1"));
 	TimerText->SetText(FText::FromString(""));
-
 	for (int32 i = 0; i < 4; i++)
 	{
 		if (UPlayerSlotWidget* PlayerSlotWidget = CreateWidget<UPlayerSlotWidget>(this, PlayerSlotWidgetClass))
 		{
-			PlayerSlotWidget->InitWidget(i);
+			PlayerSlotWidget->InitWidget(Index == i, WinScore);
 			PlayerSlotWidgets.Add(PlayerSlotWidget);
 
 			// 세로 박스에 위젯 추가
@@ -95,6 +94,11 @@ void UMainWidget::PrepareStartTurn(const int32 InTargetNumberLength)
 {
 	TargetNumberLength = InTargetNumberLength;
 	ReadyButton->SetVisibility(ESlateVisibility::Hidden);
+
+	for (int32 i = 0; i < 4; i++)
+	{
+		SetVisibilityReadyTextBorder(i, false);
+	}
 }
 
 void UMainWidget::TurnStarted() const
@@ -161,17 +165,18 @@ void UMainWidget::SetReadyButtonIsEnabled(const bool bIsReady) const
 	}
 }
 
-void UMainWidget::AddChatWidget(const TSubclassOf<UChatWidget>& ChatWidgetClass, const FString& InPlayerName,
-                                const FString& InInputText)
+void UMainWidget::AddChatWidget(const bool bIsMyChat, const TSubclassOf<UChatWidget>& ChatWidgetClass,
+                                const FString& InPlayerName, const FString& InInputText)
 {
 	LastChatWidget = CreateWidget<UChatWidget>(this, ChatWidgetClass);
 	if (LastChatWidget)
 	{
-		LastChatWidget->InitWidget(InPlayerName, InInputText);
+		LastChatWidget->InitWidget(bIsMyChat, InPlayerName, InInputText);
 
 		if (ScrollBox)
 		{
 			ScrollBox->AddChild(LastChatWidget);
+			ScrollBox->ScrollToEnd();
 		}
 	}
 }
@@ -192,6 +197,14 @@ void UMainWidget::UpdateScore(const int32 Index, const int32 Score)
 	}
 }
 
+void UMainWidget::SetVisibilityReadyTextBorder(const int32 Index, const bool bIsVisible) const
+{
+	if (PlayerSlotWidgets[Index])
+	{
+		PlayerSlotWidgets[Index]->SetVisibilityReadyTextBorder(bIsVisible);
+	}
+}
+
 void UMainWidget::AddChatRoundNotifyWidget(const TSubclassOf<UChatRoundNotifyWidget>& ChatRoundNotifyWidgetClass,
                                            const int32 CurrentRound, const bool bIsStart)
 {
@@ -203,6 +216,7 @@ void UMainWidget::AddChatRoundNotifyWidget(const TSubclassOf<UChatRoundNotifyWid
 		if (ScrollBox)
 		{
 			ScrollBox->AddChild(LastChatRoundNotifyWidget);
+			ScrollBox->ScrollToEnd();
 		}
 	}
 }
@@ -223,6 +237,21 @@ void UMainWidget::OnTextCommitted(const FText& Text, const ETextCommit::Type Com
 
 			// 입력 창 초기화
 			InputTextBox->SetText(FText::GetEmpty());
+		}
+		else
+		{
+			HelpMessage->SetColorAndOpacity(FLinearColor::Red);
+
+			GetWorld()->GetTimerManager().ClearTimer(HelpMessageColorTimerHandle);
+			GetWorld()->GetTimerManager().SetTimer(
+				HelpMessageColorTimerHandle,
+				[HelpMessage = HelpMessage]()
+				{
+					HelpMessage->SetColorAndOpacity(FLinearColor::White);
+				},
+				1.0f,
+				false
+			);
 		}
 	}
 }

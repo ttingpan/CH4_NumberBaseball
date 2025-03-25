@@ -13,7 +13,7 @@ class NUMBERBASEBALL_API ANumberBaseballPlayerState : public APlayerState
 
 public:
 	// 게임 준비 전환
-	void GameReady();
+	void GameReady(int32 Index);
 	
 	ANumberBaseballPlayerController* GetNumberBaseballPlayerController() const;
 	

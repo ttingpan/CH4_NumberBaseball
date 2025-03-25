@@ -8,7 +8,7 @@
 #include "Player/NumberBaseballPlayerController.h"
 
 ANumberBaseballGameMode::ANumberBaseballGameMode()
-	: TurnManager(nullptr), TurnDuration(5.0f), MaxTurnCount(2), MaxGameRound(3), TargetNumberLength(3),
+	: TurnManager(nullptr), TurnDuration(5.0f), MaxTurnCount(2), WinScore(3), TargetNumberLength(3),
 	  RequiredReadyCount(4),
 	  ReadyCount(0)
 {
@@ -62,7 +62,7 @@ void ANumberBaseballGameMode::StartGame()
 		const int32 CalcMaxTurnCount = MaxTurnCount * NumberBaseballGameState->GetJoinedPlayerCount();
 		// 턴 매니저 초기화
 		TurnManager->InitTurnManager(TurnDuration, CalcMaxTurnCount);
-		
+
 		// 난수 생성(1 ~ 9 범위)
 		TargetNumber = URandomNumberLib::GenerateRandomNumber(TargetNumberLength);
 
@@ -72,8 +72,7 @@ void ANumberBaseballGameMode::StartGame()
 	}
 }
 
-void ANumberBaseballGameMode::GotInputText(ANumberBaseballPlayerState* ChatOwnerPlayerState,
-                                           const FString& InputText)
+void ANumberBaseballGameMode::GotInputText(const int32 Index, const FString& InputText)
 {
 	// 즉시 턴 종료
 	if (TurnManager)
@@ -86,23 +85,18 @@ void ANumberBaseballGameMode::GotInputText(ANumberBaseballPlayerState* ChatOwner
 	// 숫자 비교
 	UComparingNumbersLib::ComparingNumbers(InputText, TargetNumber, StrikeCount, BallCount);
 
-	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
+	if (ANumberBaseballGameState* NumberBaseballGameState = GetGameState<ANumberBaseballGameState>())
 	{
-		if (ANumberBaseballPlayerController* NumberBaseballPlayerController
-			= Cast<ANumberBaseballPlayerController>(It->Get()))
-		{
-			// 채팅 위젯 추가
-			NumberBaseballPlayerController->Client_AddChatWidget(ChatOwnerPlayerState, InputText);
-		}
+		NumberBaseballGameState->AddChatWidget(Index, InputText);
 	}
 
 	FTimerHandle TimerHandle;
 	const FTimerDelegate TimerDelegate = FTimerDelegate::CreateUObject(
 		this,
 		&ANumberBaseballGameMode::SendInputText,
+		Index,
 		StrikeCount,
-		BallCount,
-		ChatOwnerPlayerState
+		BallCount
 	);
 	GetWorldTimerManager().SetTimer(TimerHandle, TimerDelegate, 1.5f, false);
 }
@@ -123,7 +117,7 @@ void ANumberBaseballGameMode::TurnTimeOver(const ANumberBaseballPlayerState* Cha
 }
 
 
-void ANumberBaseballGameMode::SendInputText(const int32 StrikeCount, const int32 BallCount, ANumberBaseballPlayerState* ChatOwnerPlayerState)
+void ANumberBaseballGameMode::SendInputText(const int32 Index, const int32 StrikeCount, const int32 BallCount)
 {
 	for (FConstPlayerControllerIterator It = GetWorld()->GetPlayerControllerIterator(); It; ++It)
 	{
@@ -135,35 +129,26 @@ void ANumberBaseballGameMode::SendInputText(const int32 StrikeCount, const int32
 		}
 	}
 
-	FTimerDelegate TimerDelegate;
+	
 	// Hit시 다음 라운드 준비
 	if (StrikeCount == 3)
 	{
 		if (ANumberBaseballGameState* NumberBaseballGameState = GetGameState<ANumberBaseballGameState>())
 		{
-			NumberBaseballGameState->AddPlayerScore(ChatOwnerPlayerState);
-			
-			TimerDelegate.BindLambda(
-				[NumberBaseballGameState]()
-				{
-					NumberBaseballGameState->PrepareStartNextRound();
-				});
+			NumberBaseballGameState->AddPlayerScore(Index, WinScore);
 		}
 	}
 	// 다음 턴 시작
 	else
 	{
+		FTimerHandle TimerHandle;
+		FTimerDelegate TimerDelegate;
 		TimerDelegate.BindLambda(
 			[TurnManager = TurnManager]()
 			{
 				TurnManager->StartTurn();
 			});
-	}
-	
-	// 바인드 되어있으면 타이머 실행
-	if (TimerDelegate.IsBound())
-	{
-		FTimerHandle TimerHandle;
+
 		GetWorldTimerManager().SetTimer(TimerHandle, TimerDelegate, 0.5f, false);
 	}
 }

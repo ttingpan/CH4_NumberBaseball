@@ -18,9 +18,11 @@ class NUMBERBASEBALL_API ANumberBaseballPlayerController : public APlayerControl
 public:
 	virtual void BeginPlay() override;
 
+	virtual void GetLifetimeReplicatedProps(TArray<class FLifetimeProperty>& OutLifetimeProps) const override;
+
 	// 화면 크기 설정
 	static void ChangeGameResolution();
-
+	
 	// 턴 시작
 	UFUNCTION(Client, Reliable)
 	void Client_OnTurnStarted();
@@ -39,7 +41,7 @@ public:
 	void Server_JoinGame(const FString& NewPlayerName);
 	// 게임 참가
 	UFUNCTION(Client, Reliable)
-	void Client_JoinGame(bool bIsHost);
+	void Client_JoinGame(int32 Index, int32 WinScore);
 	// 다른 플레이어 위젯 업데이트
 	UFUNCTION(Client, Reliable)
 	void Client_UpdateOtherPlayerName(int32 Index, const FString& OtherPlayerName) const;
@@ -49,6 +51,9 @@ public:
 	// 준비 버튼 텍스트 설정
 	UFUNCTION(Client, Unreliable)
 	void Client_SetReadyButtonText(bool bIsReady);
+	// 준비 완료 표시 설정
+	UFUNCTION(Client, Reliable)
+	void Client_SetVisibilityReadyTextBorder(const int32 Index, const bool bIsVisible);
 	// 게임 시작 버튼 활성화
 	UFUNCTION(Client, Reliable)
 	void Client_SetReadyButtonIsEnabled(bool bIsReady);
@@ -69,7 +74,7 @@ public:
 
 	// 점수 갱신
 	UFUNCTION(Client, Reliable)
-	void Client_UpdateScore(ANumberBaseballPlayerState* WinnerPlayerState, int32 Score);
+	void Client_UpdateScore(int32 WinnerPlayerIndex, int32 Score);
 
 	// 채팅 라운드 알림 위젯 추가
 	UFUNCTION(Client, Reliable)
@@ -87,16 +92,24 @@ public:
 	// 게임 참가 버튼 활성화
 	void SetJoinButtonIsEnabled() const;
 
+	// 게임 종료 위젯 표시
+	UFUNCTION(Client, Reliable)
+	void Client_ShowGameOverWidget(bool bIsWin, const APlayerState* WinnerPlayerState);
+
 	// 게임 참가 위젯 설정
 	FORCEINLINE void SetJoinGameWidget(UJoinGameWidget* InJoinGameWidget)
 	{
 		JoinGameWidget = InJoinGameWidget;
 	}
 
-private:
-	UPROPERTY()
-	TObjectPtr<UJoinGameWidget> JoinGameWidget;
+	FORCEINLINE void SetJoinedIndex(const int32 Index) { JoinedIndex = Index; }
 
-	UPROPERTY()
+private:
+	UPROPERTY(Replicated)
+	TObjectPtr<UJoinGameWidget> JoinGameWidget;
+	UPROPERTY(Replicated)
 	TObjectPtr<UMainWidget> MainWidget;
+
+	UPROPERTY(Replicated)
+	int32 JoinedIndex = 0;
 };

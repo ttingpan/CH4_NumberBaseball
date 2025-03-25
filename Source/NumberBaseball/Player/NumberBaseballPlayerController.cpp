@@ -3,6 +3,7 @@
 #include "NumberBaseballPlayerState.h"
 #include "GameFramework/GameUserSettings.h"
 #include "GameModes/NumberBaseballGameState.h"
+#include "Net/UnrealNetwork.h"
 #include "NumberBaseball/GameModes/NumberBaseballGameMode.h"
 #include "UI/MainWidget.h"
 #include "UI/NumberBaseballHUD.h"
@@ -21,6 +22,15 @@ void ANumberBaseballPlayerController::BeginPlay()
 	ChangeGameResolution();
 }
 
+void ANumberBaseballPlayerController::GetLifetimeReplicatedProps(
+	TArray<class FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ANumberBaseballPlayerController, JoinGameWidget);
+	DOREPLIFETIME(ANumberBaseballPlayerController, MainWidget);
+	DOREPLIFETIME(ANumberBaseballPlayerController, JoinedIndex);
+}
+
 void ANumberBaseballPlayerController::ChangeGameResolution()
 {
 	// 게임 사용자 설정 가져오기
@@ -35,6 +45,15 @@ void ANumberBaseballPlayerController::ChangeGameResolution()
 	}
 }
 
+void ANumberBaseballPlayerController::Client_SetVisibilityReadyTextBorder_Implementation(const int32 Index,
+	const bool bIsVisible)
+{
+	if (MainWidget)
+	{
+		MainWidget->SetVisibilityReadyTextBorder(Index, bIsVisible);
+	}
+}
+
 void ANumberBaseballPlayerController::Client_UpdatePlayerSlotWidget_Implementation() const
 {
 	if (MainWidget)
@@ -42,21 +61,12 @@ void ANumberBaseballPlayerController::Client_UpdatePlayerSlotWidget_Implementati
 		if (const ANumberBaseballGameState* NumberBaseballGameState
 			= Cast<ANumberBaseballGameState>(GetWorld()->GetGameState()))
 		{
-			int32 Index = 1;
-			for (ANumberBaseballPlayerState* NumberBaseballPlayerState : NumberBaseballGameState->
-			     GetJoinedPlayerStates())
+			for (int32 i = 0; i < NumberBaseballGameState->GetJoinedPlayerStates().Num(); i++)
 			{
-				if (NumberBaseballPlayerState && NumberBaseballGameState->GetCurrentTurnPlayerState())
+				if (NumberBaseballGameState->GetJoinedPlayerStates()[i])
 				{
-					int32 TargetIndex = 0;
-					if (NumberBaseballPlayerState != PlayerState)
-					{
-						TargetIndex = Index++;
-					}
-
-					const bool bIsMyTurn = NumberBaseballPlayerState == NumberBaseballGameState->
-						GetCurrentTurnPlayerState();
-					MainWidget->UpdatePlayerSlotWidgetByIndex(TargetIndex, bIsMyTurn);
+					const bool bIsMyTurn = NumberBaseballGameState->GetCurrentTurnPlayerIndex() == i;
+					MainWidget->UpdatePlayerSlotWidgetByIndex(i, bIsMyTurn);
 				}
 			}
 		}
@@ -88,20 +98,17 @@ bool ANumberBaseballPlayerController::Server_JoinGame_Validate(const FString& Ne
 	return true;
 }
 
-void ANumberBaseballPlayerController::Client_JoinGame_Implementation(const bool bIsHost)
+void ANumberBaseballPlayerController::Client_JoinGame_Implementation(const int32 Index, const int32 WinScore)
 {
 	if (GetHUD())
 	{
 		if (const ANumberBaseballHUD* NumberBaseballHUD = Cast<ANumberBaseballHUD>(GetHUD()))
 		{
-			NumberBaseballHUD->JoinGame();
+			NumberBaseballHUD->JoinGame(Index, WinScore);
 
 			if (MainWidget)
 			{
-				MainWidget->InitReadyButton(bIsHost);
-
-				// 자기 자신 이름 설정
-				MainWidget->SetPlayerName(0, PlayerState->GetPlayerName());
+				MainWidget->InitReadyButton(Index == 0);
 			}
 		}
 	}
@@ -162,7 +169,7 @@ void ANumberBaseballPlayerController::Client_AddChatWidget_Implementation(
 	{
 		if (const ANumberBaseballHUD* NumberBaseballHUD = Cast<ANumberBaseballHUD>(GetHUD()))
 		{
-			NumberBaseballHUD->AddChatWidget(ChatOwnerPlayerState->GetPlayerName(), InputText);
+			NumberBaseballHUD->AddChatWidget(ChatOwnerPlayerState == PlayerState, ChatOwnerPlayerState->GetPlayerName(), InputText);
 		}
 	}
 }
@@ -195,30 +202,12 @@ void ANumberBaseballPlayerController::Client_AddChatRoundNotifyWidget_Implementa
 	}
 }
 
-void ANumberBaseballPlayerController::Client_UpdateScore_Implementation(ANumberBaseballPlayerState* WinnerPlayerState,
+void ANumberBaseballPlayerController::Client_UpdateScore_Implementation(const int32 WinnerPlayerIndex,
                                                                         const int32 Score)
 {
 	if (MainWidget)
 	{
-		if (const ANumberBaseballGameState* NumberBaseballGameState
-			= Cast<ANumberBaseballGameState>(GetWorld()->GetGameState()))
-		{
-			int32 Index = 1;
-			for (const ANumberBaseballPlayerState* NumberBaseballPlayerState
-			     : NumberBaseballGameState->GetJoinedPlayerStates())
-			{
-				if (NumberBaseballPlayerState && NumberBaseballPlayerState != PlayerState)
-				{
-					if (NumberBaseballPlayerState == WinnerPlayerState)
-					{
-						MainWidget->UpdateScore(Index, Score);
-						break;
-					}
-
-					Index++;
-				}
-			}
-		}
+		MainWidget->UpdateScore(WinnerPlayerIndex, Score);
 	}
 }
 
@@ -241,6 +230,17 @@ void ANumberBaseballPlayerController::SetJoinButtonIsEnabled() const
 	}
 }
 
+void ANumberBaseballPlayerController::Client_ShowGameOverWidget_Implementation(const bool bIsWin, const APlayerState* WinnerPlayerState)
+{
+	if (GetHUD())
+	{
+		if (const ANumberBaseballHUD* NumberBaseballHUD = Cast<ANumberBaseballHUD>(GetHUD()))
+		{
+			NumberBaseballHUD->ShowGameOverWidget(bIsWin, WinnerPlayerState);
+		}
+	}
+}
+
 void ANumberBaseballPlayerController::Client_PrepareGameStart_Implementation(const int32& TargetNumberLength)
 {
 	if (MainWidget)
@@ -253,7 +253,7 @@ void ANumberBaseballPlayerController::Server_ReadyButtonClicked_Implementation()
 {
 	if (ANumberBaseballPlayerState* NumberBaseballPlayerState = GetPlayerState<ANumberBaseballPlayerState>())
 	{
-		NumberBaseballPlayerState->GameReady();
+		NumberBaseballPlayerState->GameReady(JoinedIndex);
 	}
 }
 
@@ -266,10 +266,7 @@ void ANumberBaseballPlayerController::Server_SetInputText_Implementation(const F
 {
 	if (ANumberBaseballGameMode* GameMode = Cast<ANumberBaseballGameMode>(GetWorld()->GetAuthGameMode()))
 	{
-		if (ANumberBaseballPlayerState* NumberBaseballPlayerState = GetPlayerState<ANumberBaseballPlayerState>())
-		{
-			GameMode->GotInputText(NumberBaseballPlayerState, InputText);
-		}
+		GameMode->GotInputText(JoinedIndex, InputText);
 	}
 }
 

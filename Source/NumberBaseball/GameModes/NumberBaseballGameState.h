@@ -39,13 +39,20 @@ public:
 	// 처음 라운드 준비
 	void PrepareStartGame(int32 TargetNumberLength);
 	// 다음 라운드 준비
+	UFUNCTION()
 	void PrepareStartNextRound();
 	// 다음 라운드 시작
 	UFUNCTION()
 	void StartNextRound();
 
+	// 채팅 추가
+	void AddChatWidget(const int32 Index, const FString& InputText);
+
+	// 준비 완료 표시 설정
+	void UpdateVisibilityReadyTextBorder() const;
+	void UpdateVisibilityReadyTextBorder(int32 Index, bool bIsReady) const;
 	// 플레이어 점수 획득
-	void AddPlayerScore(ANumberBaseballPlayerState* WinnerPlayerState);
+	void AddPlayerScore(int32 Index, int32 WinScore);
 
 	// 방장 게임시작 버튼 사용가능 업데이트
 	void UpdateHostGameStartButtonIsEnabled();
@@ -54,10 +61,9 @@ public:
 	// 모든 플레이어 턴 텍스트 업데이트
 	void UpdateTurnText();
 
-	FORCEINLINE ANumberBaseballPlayerState* GetCurrentTurnPlayerState() const
-	{
-		return JoinedPlayerStates[CurrentTurnPlayerIndex];
-	}
+	// 게임 종료 위젯 표시
+	UFUNCTION()
+	void ShowGameOverWidget(const APlayerState* WinnerPlayerState);
 
 	FORCEINLINE TArray<ANumberBaseballPlayerState*> GetJoinedPlayerStates() const
 	{
@@ -69,6 +75,7 @@ public:
 	{
 		return JoinedPlayerControllers;
 	}
+	FORCEINLINE int32 GetCurrentTurnPlayerIndex() const { return CurrentTurnPlayerIndex; }
 
 	FORCEINLINE ATurnManager* GetTurnManager() const { return TurnManager; }
 	FORCEINLINE void SetTurnManager(ATurnManager* InTurnManager) { TurnManager = InTurnManager; }
@@ -92,4 +99,7 @@ private:
 	// 현재 게임 라운드
 	UPROPERTY(Replicated)
 	int32 CurrentRound = 1;
+
+	// 게임 시작 여부
+	bool GameStarted = false;
 };

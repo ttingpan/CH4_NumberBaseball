@@ -13,7 +13,7 @@ class NUMBERBASEBALL_API UChatWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-	void InitWidget(const FString& InPlayerName, const FString& InInputText) const;
+	void InitWidget(bool bIsMyChat, const FString& InPlayerName, const FString& InInputText) const;
 
 	void UpdateResult(int32 StrikeCount, int32 BallCount) const;
 	

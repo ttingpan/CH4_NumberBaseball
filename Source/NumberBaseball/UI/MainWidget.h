@@ -5,6 +5,7 @@
 
 #include "MainWidget.generated.h"
 
+class UGameOverWidget;
 class UChatRoundNotifyWidget;
 class UVerticalBox;
 class UPlayerSlotWidget;
@@ -27,7 +28,7 @@ class NUMBERBASEBALL_API UMainWidget : public UUserWidget
 
 public:
 	// 위젯 초기화
-	void InitWidget(const TSubclassOf<UPlayerSlotWidget>& PlayerSlotWidgetClass);
+	void InitWidget(const TSubclassOf<UPlayerSlotWidget>& PlayerSlotWidgetClass, int32 Index, int32 WinScore);
 	// 준비 버튼 초기화
 	void InitReadyButton(bool bIsHost);
 
@@ -56,19 +57,20 @@ public:
 	void SetReadyButtonText(bool bIsReady) const;
 	// 게임 시작 버튼 활성화
 	void SetReadyButtonIsEnabled(bool bIsReady) const;
-
+	
 	// 채팅 위젯 추가
-	void AddChatWidget(const TSubclassOf<UChatWidget>& ChatWidgetClass, const FString& InPlayerName,
-	                   const FString& InInputText);
+	void AddChatWidget(bool bIsMyChat, const TSubclassOf<UChatWidget>& ChatWidgetClass,
+	                   const FString& InPlayerName, const FString& InInputText);
 	// 판정 결과 업데이트
 	void UpdateResult(int32 StrikeCount, int32 BallCount) const;
-
 	// 점수 업데이트
 	void UpdateScore(int32 Index, const int32 Score);
+	// 준비 완료 표시 설정
+	void SetVisibilityReadyTextBorder(int32 Index, bool bIsVisible) const;
 
 	// 채팅 라운드 알림 위젯 추가
 	void AddChatRoundNotifyWidget(const TSubclassOf<UChatRoundNotifyWidget>& ChatRoundNotifyWidgetClass, const int32 CurrentRound, const bool bIsStart);
-
+	
 	// 커밋 델리게이트
 	UPROPERTY()
 	FOnInputCommitted OnInputCommittedDelegate;
@@ -76,14 +78,7 @@ public:
 	UPROPERTY()
 	FOnReadyButtonClicked OnReadyButtonClickedDelegate;
 
-private:
-	UFUNCTION()
-	void OnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
-	UFUNCTION()
-	void OnTextChanged(const FText& Text);
-	UFUNCTION()
-	void OnReadyButtonClicked();
-
+protected:
 	UPROPERTY(meta = (BindWidget))
 	UEditableTextBox* InputTextBox;
 	UPROPERTY(meta = (BindWidget))
@@ -100,6 +95,14 @@ private:
 	UScrollBox* ScrollBox;
 	UPROPERTY(meta = (BindWidget))
 	UVerticalBox* PlayerSlotWidgetVerticalBox;
+	
+private:
+	UFUNCTION()
+	void OnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+	UFUNCTION()
+	void OnTextChanged(const FText& Text);
+	UFUNCTION()
+	void OnReadyButtonClicked();
 
 	// 모든 플레이어 슬롯 위젯 목록
 	TArray<TObjectPtr<UPlayerSlotWidget>> PlayerSlotWidgets;
@@ -109,7 +112,8 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UChatWidget> LastChatWidget;
-
 	UPROPERTY()
 	TObjectPtr<UChatRoundNotifyWidget> LastChatRoundNotifyWidget;
+
+	FTimerHandle HelpMessageColorTimerHandle;
 };
