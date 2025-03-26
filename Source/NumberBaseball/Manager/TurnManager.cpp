@@ -3,7 +3,7 @@
 ATurnManager::ATurnManager(): TurnDuration(0), RemainingTime(0), MaxTurnCount(0), CurrentTurnCount(0)
 {
 	PrimaryActorTick.bCanEverTick = false;
-	SetReplicates(true);
+	bReplicates = true;
 }
 
 void ATurnManager::InitTurnManager(const float InTurnDuration, const int32 InMaxTurnCount)

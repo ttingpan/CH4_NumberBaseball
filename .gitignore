@@ -75,5 +75,5 @@ DerivedDataCache/*
 
 # Jetbrain Rider
 Plugins/**/RiderLink/*
-*.sln.DotSettings.user
+*.DotSettings.user
 .idea/
