@@ -15,7 +15,7 @@
   - 게임 시작 시 서버에서 무작위 n자리 숫자 생성 (n은 `GameMode`에서 설정, 에디터에도 노출)
   - 숫자는 0을 제외한 3 ~ 9자리까지 생성 가능
 
-  <details>
+  <details open=true>
   <summary>RandomNumberLib.cpp</summary>
 
   ```cpp
@@ -54,7 +54,7 @@
   - 서버가 생성한 숫자와 플레이어가 입력한 숫자를 비교하여 스트라이크(S), 볼(B), 아웃(OUT)을 계산
   - 자리수와 값이 같으면 S, 자리수는 다르지만 값이 존재하면 B, 둘 다 아니면 OUT
 
-  <details>
+  <details open=true>
   <summary>ComparingNumbersLib.cpp</summary>
     
   ```cpp
